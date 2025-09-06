@@ -26,6 +26,7 @@
         .btn-wide { padding: 8px 20px; border-radius:6px; border:none; cursor:pointer; margin:14px 4px; }
         #saveAllBtn { background:#4a654a; color:#fff;}
         #downloadBtn { background:#795548; color:#fff;}
+        #downloadWeeklyBtn { background:#5a4d7a; color:#fff;}
         .error { color: #f44336;}
         .success { color: #16c79a;}
         .section-buttons button { margin-right: 10px; }
@@ -50,6 +51,7 @@
     <input type="date" id="dateInput" />
     <button id="saveAllBtn" class="btn-wide">Save All Sections</button>
     <button id="downloadBtn" class="btn-wide">Download Absentees & Permissions</button>
+    <button id="downloadWeeklyBtn" class="btn-wide">Download Weekly Report</button>
     <br /><br />
     <label><b>Check Attendance Status for a Person:</b></label><br />
     <input type="text" id="checkRegInput" placeholder="Registration Number (e.g. 23KD1A05D3)" style="width:220px; display:inline-block;" />
@@ -275,6 +277,11 @@ document.getElementById('downloadBtn').onclick = function() {
     });
 };
 
+document.getElementById('downloadWeeklyBtn').onclick = function() {
+    let startDate = document.getElementById('dateInput').value || new Date().toISOString().split('T')[0];
+    window.open(`/api/export_weekly_report/?start_date=${startDate}`, '_blank');
+};
+
 function checkStatus() {
     let reg = document.getElementById('checkRegInput').value.trim().toUpperCase();
     let date = document.getElementById('checkDateInput').value;
@@ -300,4 +307,3 @@ window.onload = function() {
 </script>
 </body>
 </html>
-
