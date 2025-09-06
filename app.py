@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify, send_file, render_template
+from flask import Flask, request, jsonify, send_file, send_from_directory
 from flask_cors import CORS
 import smtplib
 from email.mime.text import MIMEText
@@ -6,6 +6,7 @@ from io import BytesIO
 import random
 import string
 import pandas as pd
+from datetime import datetime, timedelta
 
 app = Flask(__name__)
 CORS(app)
@@ -19,9 +20,10 @@ attendance_data = {}  # {date: {regno: {"name": name, "status": status, "section
 EMAIL_ADDRESS = "vinaypydi85@gmail.com"
 EMAIL_PASSWORD = "pxbntsohbnbojhtw"  # Use your app password securely
 
+# Serve the frontend.html as static file from static folder
 @app.route('/')
 def home():
-    return render_template('attendance1.html')
+    return send_from_directory('static', 'frontend.html')
 
 @app.route('/reset-password')
 def reset_password():
@@ -50,7 +52,7 @@ def forgot_password():
             users[username] = temp_password
             send_temp_password_email(temp_password)
             return jsonify({"success": True})
-        except Exception as e:
+        except Exception:
             return jsonify({"success": False, "error": "Failed to send reset email"})
     return jsonify({"success": False, "error": "Username not found"})
 
@@ -88,16 +90,12 @@ def export_absentees():
     date = request.args.get('date')
     if not date or date not in attendance_data:
         return "No attendance data found for this date", 404
-
     absentees_dict = {}
-    # Group absentees and permission by section
     for regno, info in attendance_data[date].items():
         status = info.get('status')
         section = info.get('section', 'Unknown')
         if status in ['Absent', 'Permission']:
             absentees_dict.setdefault(section, []).append([regno, info.get('name'), status])
-
-    # Create Excel writer with multiple sheets for each section
     output = BytesIO()
     with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
         workbook = writer.book
@@ -105,14 +103,58 @@ def export_absentees():
         for section, rows in absentees_dict.items():
             df = pd.DataFrame(rows, columns=["Reg No", "Name", "Status"])
             df.to_excel(writer, sheet_name=f"Section {section}", startrow=2, index=False)
-
             worksheet = writer.sheets[f"Section {section}"]
-            # Write the date header in the sheet at row 0 col 0
             worksheet.write(0, 0, f"Attendance Date: {date}", header_format)
-
     output.seek(0)
-
     filename = "absentees_and_permissions.xlsx"
+    return send_file(
+        output,
+        mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        as_attachment=True,
+        download_name=filename
+    )
+
+@app.route('/api/export_weekly_report/')
+def export_weekly_report():
+    start_date_str = request.args.get('start_date')
+    if not start_date_str:
+        return jsonify({"error": "start_date parameter is required"}), 400
+    try:
+        start_date = datetime.strptime(start_date_str, "%Y-%m-%d").date()
+    except ValueError:
+        return jsonify({"error": "Invalid date format. Use YYYY-MM-DD."}), 400
+    attendance_summary = {}
+    for day_offset in range(7):
+        current_date = start_date + timedelta(days=day_offset)
+        current_date_str = current_date.isoformat()
+        day_data = attendance_data.get(current_date_str, {})
+        for regno, info in day_data.items():
+            if regno not in attendance_summary:
+                attendance_summary[regno] = {
+                    "name": info.get("name", ""),
+                    "Present": 0,
+                    "Absent": 0,
+                    "Permission": 0
+                }
+            status = info.get("status", "Absent")
+            if status in attendance_summary[regno]:
+                attendance_summary[regno][status] += 1
+            else:
+                attendance_summary[regno]["Absent"] += 1
+    if not attendance_summary:
+        return "No attendance data found for this week", 404
+    output = BytesIO()
+    with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
+        df = pd.DataFrame.from_dict(attendance_summary, orient='index')
+        df.reset_index(inplace=True)
+        df.rename(columns={"index": "Reg No"}, inplace=True)
+        df.to_excel(writer, sheet_name="Weekly Attendance", index=False)
+        workbook = writer.book
+        worksheet = writer.sheets["Weekly Attendance"]
+        header_format = workbook.add_format({'bold': True, 'font_color': 'blue', 'font_size': 14})
+        worksheet.write(0, 0, f"Weekly Attendance Report: {start_date_str} to {(start_date + timedelta(days=6)).isoformat()}", header_format)
+    output.seek(0)
+    filename = f"weekly_attendance_{start_date_str}_to_{(start_date + timedelta(days=6)).isoformat()}.xlsx"
     return send_file(
         output,
         mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
@@ -122,5 +164,4 @@ def export_absentees():
 
 if __name__ == '__main__':
     app.run(port=5000, debug=True)
-    
-this is backend code Wait for reply
+
