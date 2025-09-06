@@ -132,7 +132,7 @@ const sectionStudents = {
     ['23KD1A05I4', 'P AMRUTHA'],['23KD1A05I6', 'P SRIVALLI'],['23KD1A05I7', 'P JAHNAVI'],['23KD1A05I8', 'P SURENDRA REDDY'],
     ['23KD1A05I9', 'P SRAVYA'],['23KD1A05J0', 'P SAHITH'],['23KD1A05J1', 'P BHAVYA SRI'],['23KD1A05J2', 'P MEENAKSHI'],
     ['23KD1A05J3', 'P PRIYANKA'],['23KD1A05J4', 'P CHITTI BABU'],['23KD1A05J5', 'P MYTHRI'],['23KD1A05J6', 'JAHNAVI LATHA'],
-    ['23KD1A05J8', 'P VARUDHINI'],['24KD5A0512', 'P REENUKA'],['24KD5A0513', 'P NAGESHWARI'],['24KD5A0514', 'P VINAY'],
+    ['23KD1A05J8', 'P VARUDHINI'],['24KD5A0512', 'P RENUKA'],['24KD5A0513', 'P NAGESHWARI'],['24KD5A0514', 'P VINAY'],
     ['24KD5A0515', 'R PREMKUMAR'],['24KD5A0516', 'S SUJATHA'],['24KD5A0517', 'S KUMARRAJA']
   ],
   D: [
@@ -162,8 +162,8 @@ let attendance = {}; // {date: {reg: status}}
 let currentSection = 'A';
 
 function login() {
-    var u = document.getElementById('username').value.trim();
-    var p = document.getElementById('password').value.trim();
+    let u = document.getElementById('username').value.trim();
+    let p = document.getElementById('password').value.trim();
     fetch('/api/login', {
         method: 'POST',
         headers: {'Content-Type':'application/json'},
@@ -182,13 +182,12 @@ function login() {
 }
 
 function forgotpw() {
-    var u = document.getElementById('username').value.trim() || '';
+    let u = document.getElementById('username').value.trim() || '';
     fetch('/api/forgot_password', {
         method:'POST',
         headers:{'Content-Type':'application/json'},
-        body:JSON.stringify({username:u})
-    }).then(resp => resp.json())
-      .then(data =>{
+        body: JSON.stringify({username:u})
+    }).then(resp => resp.json()).then(data =>{
         if(data.success){
             document.getElementById('logmsg').innerHTML = '<div class="success">Reset link sent to admin email.</div>';
         } else {
@@ -238,12 +237,12 @@ document.getElementById('dateInput').onchange = function() {
 document.getElementById('saveAllBtn').onclick = function() {
     let date = document.getElementById('dateInput').value || new Date().toISOString().split('T')[0];
     let allAttendance = {};
-    for(let sec of ['A','B','C','D']){
+    ['A','B','C','D'].forEach(sec => {
         sectionStudents[sec].forEach(([reg, name]) => {
             let status = (attendance[date] && attendance[date][reg]) || "Present";
             allAttendance[reg] = {name: name, status: status, section: sec};
         });
-    }
+    });
     fetch('/api/save', {
         method: 'POST',
         headers: {'Content-Type':'application/json'},
@@ -259,12 +258,12 @@ document.getElementById('saveAllBtn').onclick = function() {
 document.getElementById('downloadBtn').onclick = function() {
     let date = document.getElementById('dateInput').value || new Date().toISOString().split('T')[0];
     let allAttendance = {};
-    for(let sec of ['A','B','C','D']){
+    ['A','B','C','D'].forEach(sec => {
         sectionStudents[sec].forEach(([reg, name]) => {
             let status = (attendance[date] && attendance[date][reg]) || "Present";
             allAttendance[reg] = {name: name, status: status, section: sec};
         });
-    }
+    });
     fetch('/api/save', {
         method: 'POST',
         headers: {'Content-Type':'application/json'},
