@@ -20,7 +20,6 @@ attendance_data = {}  # {date: {regno: {"name": name, "status": status, "section
 EMAIL_ADDRESS = "vinaypydi85@gmail.com"
 EMAIL_PASSWORD = "pxbntsohbnbojhtw"  # Use your app password securely
 
-# Serve the frontend.html as static file from static folder
 @app.route('/')
 def home():
     return send_from_directory('static', 'frontend.html')
@@ -60,7 +59,7 @@ def send_temp_password_email(temp_password):
     msg = MIMEText(f'Your temporary password is: {temp_password}\nPlease use this password to login and change it immediately.')
     msg['Subject'] = 'Your Temporary Password'
     msg['From'] = EMAIL_ADDRESS
-    msg['To'] = EMAIL_ADDRESS  
+    msg['To'] = EMAIL_ADDRESS
     server = smtplib.SMTP_SSL('smtp.gmail.com', 465)
     server.login(EMAIL_ADDRESS, EMAIL_PASSWORD)
     server.send_message(msg)
@@ -123,7 +122,9 @@ def export_weekly_report():
         start_date = datetime.strptime(start_date_str, "%Y-%m-%d").date()
     except ValueError:
         return jsonify({"error": "Invalid date format. Use YYYY-MM-DD."}), 400
+
     attendance_summary = {}
+    # Correct weekly accumulation
     for day_offset in range(7):
         current_date = start_date + timedelta(days=day_offset)
         current_date_str = current_date.isoformat()
@@ -141,8 +142,10 @@ def export_weekly_report():
             if status not in ["Present", "Absent", "Permission"]:
                 status = "Absent"
             attendance_summary[regno][status] += 1
+
     if not attendance_summary:
         return "No attendance data found for this week", 404
+
     output = BytesIO()
     with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
         df = pd.DataFrame.from_dict(attendance_summary, orient='index')
