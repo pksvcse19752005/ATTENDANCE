@@ -136,11 +136,11 @@ def export_weekly_report():
                     "Absent": 0,
                     "Permission": 0
                 }
-            status = info.get("status", "Absent")
-            if status in attendance_summary[regno]:
-                attendance_summary[regno][status] += 1
-            else:
-                attendance_summary[regno]["Absent"] += 1
+            status_raw = info.get("status", "Absent")
+            status = status_raw.capitalize()
+            if status not in ["Present", "Absent", "Permission"]:
+                status = "Absent"
+            attendance_summary[regno][status] += 1
     if not attendance_summary:
         return "No attendance data found for this week", 404
     output = BytesIO()
@@ -164,4 +164,3 @@ def export_weekly_report():
 
 if __name__ == '__main__':
     app.run(port=5000, debug=True)
-
