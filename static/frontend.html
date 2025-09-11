@@ -2,15 +2,15 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8" />
-    <title>Attendance Management Login</title>
+    <title>Attendance Management System</title>
     <style>
         body { font-family: Arial, sans-serif; background: #f7f7f7;}
         .container { max-width: 920px; margin: 32px auto; background: #fff; padding: 24px; border-radius: 14px; box-shadow: 0 2px 8px rgba(0,0,0,.08);}
-        .loginbox { max-width: 340px; margin: 60px auto; background: #fff; padding: 24px; border-radius: 16px;}
+        .loginbox { max-width: 340px; margin: 40px auto; background: #fff; padding: 24px; border-radius: 16px;}
         h2 { text-align: center; margin-bottom: 18px;}
-        label { margin-top:12px;}
+        label { margin-top:12px; display: block;}
         input[type="text"], input[type="password"], input[type="date"] { padding:8px; margin:6px 0 10px 0; width:100%; border-radius:6px; border:1px solid #ccc;}
-        button { background: #298afb; color: white; border: none; padding: 10px 18px; border-radius: 6px; font-size: 16px; cursor: pointer; margin-bottom: 10px;}
+        button { background: #298afb; color: white; border: none; padding: 10px 18px; border-radius: 6px; font-size: 16px; cursor: pointer; margin-top: 10px;}
         button:hover { background: #2374d7;}
         th { background: #ffe59b;}
         tr:nth-child(even) { background: #f9f9f9;}
@@ -30,10 +30,19 @@
         .error { color: #f44336;}
         .success { color: #16c79a;}
         .section-buttons button { margin-right: 10px; }
+        nav { text-align: center; margin-top: 20px; }
+        nav button { margin: 0 10px; padding: 8px 16px; cursor: pointer; }
     </style>
 </head>
 <body>
-<div id="loginbox" class="loginbox">
+
+<nav>
+    <button onclick="showView('adminLogin')">Admin Login</button>
+    <button onclick="showView('studentLogin')">Student Login</button>
+</nav>
+
+<!-- Admin Login -->
+<div id="adminLogin" class="loginbox">
     <h2>Admin Login</h2>
     <div id="logmsg"></div>
     <label for="username">Username:</label>
@@ -44,6 +53,8 @@
     <br />
     <a href="#" onclick="forgotpw();return false;" style="color:#298afb;">Forgot Password?</a>
 </div>
+
+<!-- Admin Attendance Section -->
 <div id="attendance" class="container hidden">
     <h2>Attendance Management Chart</h2>
     <div id="savemsg"></div>
@@ -75,7 +86,30 @@
         </thead>
         <tbody id="attBody"></tbody>
     </table>
+    <button onclick="logoutAdmin()" style="margin-top:20px; background:#d9534f;">Logout</button>
 </div>
+
+<!-- Student Login -->
+<div id="studentLogin" class="loginbox hidden">
+    <h2>Student Login</h2>
+    <div id="stuLoginMsg" class="error"></div>
+    <label for="stuUsername">Registration Number:</label>
+    <input type="text" id="stuUsername" />
+    <label for="stuPassword">Password:</label>
+    <input type="password" id="stuPassword" />
+    <button onclick="studentLogin()">Login</button>
+</div>
+
+<!-- Student Attendance Check -->
+<div id="studentAttendanceCheck" class="container hidden">
+    <h2>Check Your Attendance</h2>
+    <label for="stuDate">Select Date:</label>
+    <input type="date" id="stuDate" />
+    <button onclick="checkStudentAttendance()">Check</button>
+    <div id="stuAttendanceResult" style="margin-top:15px; font-weight:bold;"></div>
+    <button onclick="logoutStudent()" style="margin-top:20px; background:#d9534f;">Logout</button>
+</div>
+
 <script>
 const sectionStudents = {
   A: [
@@ -157,11 +191,18 @@ const sectionStudents = {
     ['23KD1A05Q3', 'YERUBOTHU THANEESH KARTHEEK'],['24KD5A0518', 'SURAVARAPU DURGAPRASAD'],['24KD5A0519', 'TEEDA SIRISHA'],['24KD5A0520', 'TEJA SREE PENTYALA'],
     ['24KD5A0521', 'TETAKALI LAVANYA'],['24KD5A0522', 'VADAVALASA INDRASENA'],['24KD5A0523', 'YENUGULA ANITHA'],['24KD5A0524', 'YERLAJELLA KARTHIK'],
     ['24KD5A0525', 'REDDI SANDHYA']
-  ]
 };
 
-let attendance = {}; // {date: {reg: status}}
+let attendance = {};
 let currentSection = 'A';
+
+function showView(viewId) {
+    document.getElementById('adminLogin').classList.add('hidden');
+    document.getElementById('attendance').classList.add('hidden');
+    document.getElementById('studentLogin').classList.add('hidden');
+    document.getElementById('studentAttendanceCheck').classList.add('hidden');
+    document.getElementById(viewId).classList.remove('hidden');
+}
 
 function login() {
     let u = document.getElementById('username').value.trim();
@@ -172,15 +213,23 @@ function login() {
         body: JSON.stringify({username:u, password:p})
     }).then(resp => resp.json()).then(data => {
         if(data.success){
-            document.getElementById('loginbox').classList.add('hidden');
-            document.getElementById('attendance').classList.remove('hidden');
+            showView('attendance');
             let today = new Date().toISOString().split('T')[0];
             document.getElementById('dateInput').value = today;
+            document.getElementById('checkDateInput').value = today;
             showSection('A');
         } else {
             document.getElementById('logmsg').innerHTML = '<div class="error">' + data.error + '</div>';
         }
     });
+}
+
+function logoutAdmin() {
+    attendance = {};
+    document.getElementById('username').value = '';
+    document.getElementById('password').value = '';
+    document.getElementById('logmsg').innerHTML = '';
+    showView('adminLogin');
 }
 
 function forgotpw() {
@@ -259,27 +308,28 @@ document.getElementById('saveAllBtn').onclick = function() {
 
 document.getElementById('downloadBtn').onclick = function() {
     let date = document.getElementById('dateInput').value || new Date().toISOString().split('T')[0];
-    let allAttendance = {};
-    ['A','B','C','D'].forEach(sec => {
-        sectionStudents[sec].forEach(([reg, name]) => {
-            let status = (attendance[date] && attendance[date][reg]) || "Present";
-            allAttendance[reg] = {name: name, status: status, section: sec};
-        });
-    });
-    fetch('/api/save', {
-        method: 'POST',
-        headers: {'Content-Type':'application/json'},
-        body: JSON.stringify({date: date, attendance: allAttendance})
-    }).then(resp => resp.json()).then(data => {
-        if(data.success){
-            window.open('/api/export_absentees/?date=' + date, '_blank');
-        }
+    fetch('/api/export_absentees/?date=' + date).then(resp => resp.blob()).then(blob => {
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `absentees_permissions_${date}.xlsx`;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
     });
 };
 
 document.getElementById('downloadWeeklyBtn').onclick = function() {
     let startDate = document.getElementById('dateInput').value || new Date().toISOString().split('T')[0];
-    window.open(`/api/export_weekly_report/?start_date=${startDate}`, '_blank');
+    fetch(`/api/export_weekly_report/?start_date=${startDate}`).then(resp => resp.blob()).then(blob => {
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `weekly_attendance_${startDate}.xlsx`;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+    });
 };
 
 function checkStatus() {
@@ -296,13 +346,53 @@ function checkStatus() {
     });
 }
 
+// Student login and attendance status check
+
+function studentLogin() {
+    let username = document.getElementById('stuUsername').value.trim().toUpperCase();
+    let password = document.getElementById('stuPassword').value.trim();
+    fetch('/api/student_login', {
+        method: 'POST',
+        headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({username, password})
+    }).then(resp => resp.json()).then(data => {
+        if(data.success){
+            document.getElementById('studentLogin').classList.add('hidden');
+            document.getElementById('studentAttendanceCheck').classList.remove('hidden');
+            document.getElementById('stuAttendanceResult').innerText = '';
+            document.getElementById('stuDate').value = new Date().toISOString().split('T')[0];
+        } else {
+            document.getElementById('stuLoginMsg').innerText = data.error || "Login failed";
+        }
+    });
+}
+
+function checkStudentAttendance() {
+    let regno = document.getElementById('stuUsername').value.trim().toUpperCase();
+    let date = document.getElementById('stuDate').value;
+    if(!date){
+        document.getElementById('stuAttendanceResult').innerText = "Please select a date";
+        return;
+    }
+    fetch(`/api/student/check_attendance?regno=${regno}&date=${date}`)
+    .then(resp => resp.json())
+    .then(data => {
+        document.getElementById('stuAttendanceResult').innerText = `Your attendance on ${date} is: ${data.status}`;
+    });
+}
+
+function logoutStudent() {
+    document.getElementById('stuUsername').value = '';
+    document.getElementById('stuPassword').value = '';
+    document.getElementById('stuLoginMsg').innerText = '';
+    document.getElementById('stuAttendanceResult').innerText = '';
+    document.getElementById('studentAttendanceCheck').classList.add('hidden');
+    document.getElementById('studentLogin').classList.remove('hidden');
+}
+
+// Initial view setup
 window.onload = function() {
-    document.getElementById('attendance').classList.add('hidden');
-    document.getElementById('loginbox').classList.remove('hidden');
-    let today = new Date().toISOString().split('T')[0];
-    document.getElementById('checkDateInput').value = today;
-    document.getElementById('dateInput').value = today;
-    showSection('A');
+    showView('adminLogin');
 };
 </script>
 </body>
