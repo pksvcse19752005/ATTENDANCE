@@ -12,15 +12,14 @@ import os
 app = Flask(__name__)
 CORS(app)
 
-# Admin users: username: password
 users = {
     "DEPTCSE": "pksv"
 }
 
-attendance_data = {}  # {date: {regno: {"name": name, "status": status, "section": section}}}
+attendance_data = {}
 
 EMAIL_ADDRESS = os.environ.get("EMAIL_ADDRESS", "vinaypydi85@gmail.com")
-EMAIL_PASSWORD = os.environ.get("EMAIL_PASSWORD", "pxbntsohbnbojhtw")  # Prefer env var on Render
+EMAIL_PASSWORD = os.environ.get("EMAIL_PASSWORD", "pxbntsohbnbojhtw")  # use env vars for security
 
 @app.route('/')
 def home():
@@ -30,7 +29,6 @@ def home():
 def reset_password():
     return "<h2>Password Reset Page - Feature under construction.</h2>"
 
-# Admin login API
 @app.route('/api/login', methods=['POST'])
 def login():
     data = request.json
@@ -68,7 +66,6 @@ def send_temp_password_email(temp_password):
     server.send_message(msg)
     server.quit()
 
-# Admin: save full attendance for a date
 @app.route('/api/save', methods=['POST'])
 def save_attendance():
     data = request.json
@@ -79,7 +76,6 @@ def save_attendance():
     attendance_data[date] = attendance
     return jsonify({"success": True})
 
-# Admin/staff: check individual's attendance for a date
 @app.route('/api/check')
 def check_attendance():
     regno = request.args.get('regno')
@@ -89,24 +85,18 @@ def check_attendance():
     status = attendance_data.get(date, {}).get(regno, {}).get('status', "Absent")
     return jsonify({"status": status})
 
-# Student "login": just checks if regno exists in any attendance record
 @app.route('/api/student_login', methods=['POST'])
 def student_login():
     data = request.json
     regno = data.get('username')
     if not regno:
         return jsonify({"success": False, "error": "Registration number required"})
-    # Check if regno exists in any attendance data
-    found = False
+    # student exists if in any day's attendance data
     for day in attendance_data.values():
         if regno in day:
-            found = True
-            break
-    if found:
-        return jsonify({"success": True})
+            return jsonify({"success": True})
     return jsonify({"success": False, "error": "Invalid registration number"})
 
-# Students check their attendance on a given date
 @app.route('/api/student/check_attendance')
 def student_check_attendance():
     regno = request.args.get('regno')
@@ -116,7 +106,6 @@ def student_check_attendance():
     status = attendance_data.get(date, {}).get(regno, {}).get('status', "Absent")
     return jsonify({"status": status})
 
-# Admin: export absentees/permissions for date
 @app.route('/api/export_absentees/')
 def export_absentees():
     date = request.args.get('date')
@@ -146,7 +135,6 @@ def export_absentees():
         download_name=filename
     )
 
-# Admin: export weekly attendance breakdown
 @app.route('/api/export_weekly_report/')
 def export_weekly_report():
     start_date_str = request.args.get('start_date')
@@ -156,7 +144,6 @@ def export_weekly_report():
         start_date = datetime.strptime(start_date_str, "%Y-%m-%d").date()
     except ValueError:
         return jsonify({"error": "Invalid date format. Use YYYY-MM-DD."}), 400
-
     week_dates = [(start_date + timedelta(days=i)).isoformat() for i in range(7)]
     all_students = {}
     for date in week_dates:
@@ -173,7 +160,6 @@ def export_weekly_report():
         report_rows.append(row)
     if not report_rows:
         return "No attendance data found for this week", 404
-
     df = pd.DataFrame(report_rows)
     output = BytesIO()
     with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
@@ -195,4 +181,4 @@ def export_weekly_report():
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 5000))
     app.run(host='0.0.0.0', port=port, debug=True)
-    
+                
