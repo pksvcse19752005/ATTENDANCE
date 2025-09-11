@@ -1,33 +1,36 @@
-from flask import Flask, request, jsonify, send_file, send_from_directory
+from flask import Flask, request, jsonify, send_from_directory, send_file
 from flask_cors import CORS
-import smtplib
 from email.mime.text import MIMEText
+import smtplib
 from io import BytesIO
+from datetime import datetime, timedelta
+import pandas as pd
 import random
 import string
-import pandas as pd
-from datetime import datetime, timedelta
 
 app = Flask(__name__)
 CORS(app)
 
-# Admin users - username: password
-users = {
+# Admin user credentials
+admin_users = {
     "DEPTCSE": "pksv"
 }
 
-# Student users - regno: password (for example purposes)
+# Dummy student credentials (regno: password)
 student_users = {
-    "23KD1A05H2": "studentpassword1",
-    "23KD1A0510": "studentpassword2"
+    "23KD1A05D3": "studentpass1",
+    "23KD1A0525": "studentpass2"
+    # Add more registrations and passwords here
 }
 
-# Attendance data structure: {date: {regno: {"name": name, "status": status, "section": section}}}
+# Attendance data {date: {regno: {"name": name, "status": status, "section": section}}}
 attendance_data = {}
 
+# Email credentials for password reset (update securely)
 EMAIL_ADDRESS = "vinaypydi85@gmail.com"
-EMAIL_PASSWORD = "pxbntsohbnbojhtw"  # Use your app password securely
+EMAIL_PASSWORD = "pxbntsohbnbojhtw"  # Use app password safely
 
+# Serve frontend HTML
 @app.route('/')
 def home():
     return send_from_directory('static', 'frontend.html')
@@ -36,56 +39,37 @@ def home():
 def reset_password():
     return "<h2>Password Reset Page - Feature under construction.</h2>"
 
-# Admin login
+# Admin login endpoint
 @app.route('/api/login', methods=['POST'])
-def login():
+def admin_login():
     data = request.json
     username = data.get('username')
     password = data.get('password')
-    if username in users and users[username] == password:
+    if username in admin_users and admin_users[username] == password:
         return jsonify({"success": True})
     return jsonify({"success": False, "error": "Invalid username or password"})
 
-# Student login
+# Student login endpoint
 @app.route('/api/student_login', methods=['POST'])
 def student_login():
     data = request.json
-    username = data.get('username')  # student reg no
+    regno = data.get('regno')
     password = data.get('password')
-    if username in student_users and student_users[username] == password:
+    if regno in student_users and student_users[regno] == password:
         return jsonify({"success": True})
-    return jsonify({"success": False, "error": "Invalid student username or password"})
+    return jsonify({"success": False, "error": "Invalid registration number or password"})
 
-def generate_temp_password(length=8):
-    chars = string.ascii_letters + string.digits + string.punctuation
-    return ''.join(random.choice(chars) for _ in range(length))
+# Check attendance status (for admin and students)
+@app.route('/api/check', methods=['GET'])
+def check_attendance():
+    regno = request.args.get('regno')
+    date = request.args.get('date')
+    if not regno or not date:
+        return jsonify({"status": "Absent"})
+    status = attendance_data.get(date, {}).get(regno, {}).get('status', "Absent")
+    return jsonify({"status": status})
 
-# Admin forgot password
-@app.route('/api/forgot_password', methods=['POST'])
-def forgot_password():
-    data = request.json
-    username = data.get('username')
-    if username in users:
-        try:
-            temp_password = generate_temp_password()
-            users[username] = temp_password
-            send_temp_password_email(temp_password)
-            return jsonify({"success": True})
-        except Exception:
-            return jsonify({"success": False, "error": "Failed to send reset email"})
-    return jsonify({"success": False, "error": "Username not found"})
-
-def send_temp_password_email(temp_password):
-    msg = MIMEText(f'Your temporary password is: {temp_password}\nPlease use this password to login and change it immediately.')
-    msg['Subject'] = 'Your Temporary Password'
-    msg['From'] = EMAIL_ADDRESS
-    msg['To'] = EMAIL_ADDRESS
-    server = smtplib.SMTP_SSL('smtp.gmail.com', 465)
-    server.login(EMAIL_ADDRESS, EMAIL_PASSWORD)
-    server.send_message(msg)
-    server.quit()
-
-# Save attendance (admin)
+# Save attendance (admin only)
 @app.route('/api/save', methods=['POST'])
 def save_attendance():
     data = request.json
@@ -96,27 +80,38 @@ def save_attendance():
     attendance_data[date] = attendance
     return jsonify({"success": True})
 
-# Check individual attendance (admin)
-@app.route('/api/check')
-def check_attendance():
-    regno = request.args.get('regno')
-    date = request.args.get('date')
-    if not regno or not date:
-        return jsonify({"status": "Absent"})
-    status = attendance_data.get(date, {}).get(regno, {}).get('status', "Absent")
-    return jsonify({"status": status})
+# Generate random temporary password
+def generate_temp_password(length=8):
+    chars = string.ascii_letters + string.digits + string.punctuation
+    return ''.join(random.choice(chars) for _ in range(length))
 
-# Student check own attendance status for a date
-@app.route('/api/student/check_attendance')
-def student_check_attendance():
-    regno = request.args.get('regno')
-    date = request.args.get('date')
-    if not regno or not date:
-        return jsonify({"status": "Absent"})
-    status = attendance_data.get(date, {}).get(regno, {}).get('status', "Absent")
-    return jsonify({"status": status})
+# Send email with temporary password
+def send_temp_password_email(temp_password):
+    msg = MIMEText(f'Your temporary password is: {temp_password}\nPlease use this password to login and change it immediately.')
+    msg['Subject'] = 'Your Temporary Password'
+    msg['From'] = EMAIL_ADDRESS
+    msg['To'] = EMAIL_ADDRESS  
+    server = smtplib.SMTP_SSL('smtp.gmail.com', 465)
+    server.login(EMAIL_ADDRESS, EMAIL_PASSWORD)
+    server.send_message(msg)
+    server.quit()
 
-# Export Absentees and Permission report (admin)
+# Forgot password for admin
+@app.route('/api/forgot_password', methods=['POST'])
+def forgot_password():
+    data = request.json
+    username = data.get('username')
+    if username in admin_users:
+        try:
+            temp_password = generate_temp_password()
+            admin_users[username] = temp_password
+            send_temp_password_email(temp_password)
+            return jsonify({"success": True})
+        except Exception:
+            return jsonify({"success": False, "error": "Failed to send reset email"})
+    return jsonify({"success": False, "error": "Username not found"})
+
+# Export absentees and permission as Excel
 @app.route('/api/export_absentees/')
 def export_absentees():
     date = request.args.get('date')
@@ -146,7 +141,7 @@ def export_absentees():
         download_name=filename
     )
 
-# Export Weekly Attendance Report (admin)
+# Export weekly attendance report as Excel
 @app.route('/api/export_weekly_report/')
 def export_weekly_report():
     start_date_str = request.args.get('start_date')
@@ -156,43 +151,38 @@ def export_weekly_report():
         start_date = datetime.strptime(start_date_str, "%Y-%m-%d").date()
     except ValueError:
         return jsonify({"error": "Invalid date format. Use YYYY-MM-DD."}), 400
-
-    week_dates = [(start_date + timedelta(days=i)).isoformat() for i in range(7)]
-
-    # Build master student list from week data
-    all_students = {}
-    for date in week_dates:
-        for regno, info in attendance_data.get(date, {}).items():
-            if regno not in all_students:
-                all_students[regno] = info.get('name', "")
-
-    report_rows = []
-    for regno, name in sorted(all_students.items()):
-        row = {'Reg No': regno, 'Name': name}
-        for date in week_dates:
-            day_data = attendance_data.get(date, {})
-            info = day_data.get(regno)
-            if info is not None:
-                status = info.get('status', 'Absent')
+    attendance_summary = {}
+    for day_offset in range(7):
+        current_date = start_date + timedelta(days=day_offset)
+        current_date_str = current_date.isoformat()
+        day_data = attendance_data.get(current_date_str, {})
+        for regno, info in day_data.items():
+            if regno not in attendance_summary:
+                attendance_summary[regno] = {
+                    "name": info.get("name", ""),
+                    "Present": 0,
+                    "Absent": 0,
+                    "Permission": 0
+                }
+            status = info.get("status", "Absent")
+            if status in attendance_summary[regno]:
+                attendance_summary[regno][status] += 1
             else:
-                status = "Absent"
-            row[date] = status
-        report_rows.append(row)
-
-    if not report_rows:
+                attendance_summary[regno]["Absent"] += 1
+    if not attendance_summary:
         return "No attendance data found for this week", 404
-
-    df = pd.DataFrame(report_rows)
     output = BytesIO()
     with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
+        df = pd.DataFrame.from_dict(attendance_summary, orient='index')
+        df.reset_index(inplace=True)
+        df.rename(columns={"index": "Reg No"}, inplace=True)
         df.to_excel(writer, sheet_name="Weekly Attendance", index=False)
         workbook = writer.book
         worksheet = writer.sheets["Weekly Attendance"]
         header_format = workbook.add_format({'bold': True, 'font_color': 'blue', 'font_size': 14})
-        week_range = f"{week_dates[0]} to {week_dates[-1]}"
-        worksheet.write(0, 0, f"Weekly Attendance Breakdown: {week_range}", header_format)
+        worksheet.write(0, 0, f"Weekly Attendance Report: {start_date_str} to {(start_date + timedelta(days=6)).isoformat()}", header_format)
     output.seek(0)
-    filename = f"weekly_attendance_breakdown_{week_dates[0]}_to_{week_dates[-1]}.xlsx"
+    filename = f"weekly_attendance_{start_date_str}to{(start_date + timedelta(days=6)).isoformat()}.xlsx"
     return send_file(
         output,
         mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
