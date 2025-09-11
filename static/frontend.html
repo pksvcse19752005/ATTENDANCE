@@ -16,11 +16,11 @@
     }
     .apptitle svg { height: 38px; margin-right: 17px;}
     .apptitle h1 {
-      font-family: 'Baloo', cursive; font-size: 2.4rem; margin:0; color: #16883d;
+      font-family: 'Baloo', cursive, Arial; font-size: 2.2rem; margin:0; color: #16883d;
       letter-spacing: 2px; font-weight: 700; display: inline;
     }
     .apptitle span {
-      font-size:2.2rem; color: #ffb300; font-weight:600; letter-spacing:2px;
+      font-size:2.1rem; color: #ffb300; font-weight:600; letter-spacing:2px;
     }
     nav {
       display: flex; background: #16883d; color:#fff; font-size: 1.07rem;
@@ -40,8 +40,7 @@
     }
     .login-card, .attendance-card {
       background: #fff; box-shadow:0 3px 18px rgba(0,0,0,.07);
-      border-radius:14px; padding:32px 32px 19px 32px; margin-bottom:12px;
-      min-width:280px; max-width:440px; margin:auto;
+      border-radius:14px; padding:32px 32px 19px 32px; margin-bottom:12px; min-width:280px; max-width:440px; margin:auto;
     }
     .login-card h2 { font-size:1.5rem; margin-bottom:4px; color:#16883d;}
     .attendance-card h2 { font-size:1.3rem; margin-bottom:3px;}
@@ -50,9 +49,7 @@
     label { display: block; color:#374551; font-weight:500; margin-top:17px;}
     input[type="text"], input[type="password"], input[type="date"] {
       margin-top:8px; padding:8px; width:100%; border-radius:6px; border:1px solid #b7d2ca;
-      font-size:1.07rem;
-      margin-bottom:9px;
-      background:#f6fcfa;
+      font-size:1.07rem; margin-bottom:9px; background:#f6fcfa;
     }
     button, .btn {
       background: #16883d; color: #fff; border: none; padding: 10px 19px; border-radius: 7px; font-size: 1.07rem; font-weight: bold; cursor: pointer; margin-top: 11px; margin-bottom:8px;
@@ -65,7 +62,7 @@
     .success { color: #16c79a; font-size:0.98rem;}
     .attendance-table, .attendance-table th, .attendance-table td { border: 1px solid #ebebeb; border-collapse: collapse;}
     .attendance-table { width: 100%; margin-top:16px; }
-    .attendance-table th { background: #ffe59b; font-size:1rem;} 
+    .attendance-table th { background: #ffe59b; font-size:1rem;}
     .attendance-table td, .attendance-table th { padding: 8px 10px; text-align: left;}
     .section-buttons { margin-bottom:12px;}
     .section-buttons button {
@@ -98,8 +95,8 @@
     <h1><span>A</span>ttendance <span>P</span>ortal</h1>
   </div>
   <nav>
-    <button id="navAdmin" onclick="showView('adminLogin')" class="active">Admin Panel</button>
-    <button id="navStudent" onclick="showView('studentLogin')">Student Attendance</button>
+    <button id="navAdminLogin" onclick="showView('adminLogin')" class="active">Admin Panel</button>
+    <button id="navStudentLogin" onclick="showView('studentLogin')">Student Attendance</button>
   </nav>
 </header>
 
@@ -109,7 +106,6 @@
   <div id="adminLogin" class="login-card">
     <div class="avatar"><svg fill="#16883d" viewBox="0 0 40 40"><circle cx="20" cy="12" r="8"/><ellipse cx="20" cy="30" rx="12" ry="7"/></svg></div>
     <h2>Admin Login</h2>
-    <p class="desc-text">Only admin users can mark daily attendance and export weekly or absentee reports.</p>
     <div id="logmsg"></div>
     <label for="username">Username</label>
     <input type="text" id="username" autocomplete="username" />
@@ -164,7 +160,6 @@
   <div id="studentLogin" class="login-card hidden">
     <div class="avatar"><svg fill="#16883d" viewBox="0 0 40 40"><circle cx="20" cy="12" r="8"/><ellipse cx="20" cy="30" rx="12" ry="7"/><rect x="12" y="8" width="16" height="2" rx="1" fill="#ffd600"/></svg></div>
     <h2>Student Attendance Check</h2>
-    <div class="desc-text">Type your registration number and date to view your attendance status.</div>
     <div id="stuLoginMsg" class="error"></div>
     <label for="stuUsername">Registration Number</label>
     <input type="text" id="stuUsername" placeholder="e.g. 23KD1A05H2" />
@@ -174,12 +169,8 @@
     <div id="stuAttendanceResult" style="margin-top:15px; font-weight:bold;"></div>
     <button onclick="logoutStudent()" class="btn" style="margin-top:14px;background:#f44336;">Logout</button>
   </div>
-
 </div>
-<!-- END main-content -->
-
 <script>
-// [Shortened student list for brevity; add full list in your code]
 const sectionStudents = {
   A: [
     ['23KD1A0501', 'ABDUL GUFFRAN'],['23KD1A0502', 'ADAPAKA TEJASRI'],['23KD1A0503', 'ADDANKI MAHESWARI'],['23KD1A0504', 'ALAMANDA SANJANA BLESSY'],
@@ -264,18 +255,16 @@ const sectionStudents = {
 };
 let attendance = {};
 let currentSection = 'A';
-
-// Nav & Cards
 function showView(viewId) {
-  for (let id of ['adminLogin','attendance','studentLogin']) {
+  ['adminLogin', 'attendance', 'studentLogin'].forEach(id => {
     document.getElementById(id).classList.add('hidden');
-    document.getElementById('nav' + id.charAt(0).toUpperCase() + id.slice(1)).classList.remove('active');
-  }
+    let navBtn = document.getElementById('nav' + id.charAt(0).toUpperCase() + id.slice(1));
+    if(navBtn) navBtn.classList.remove('active');
+  });
   document.getElementById(viewId).classList.remove('hidden');
-  document.getElementById('nav'+viewId.charAt(0).toUpperCase()+viewId.slice(1)).classList.add('active');
+  let navBtn = document.getElementById('nav' + viewId.charAt(0).toUpperCase() + viewId.slice(1));
+  if(navBtn) navBtn.classList.add('active');
 }
-
-// Admin login
 function login() {
   let u = document.getElementById('username').value.trim();
   let p = document.getElementById('password').value.trim();
@@ -295,7 +284,6 @@ function login() {
     }
   });
 }
-
 function logoutAdmin() {
   attendance = {};
   document.getElementById('username').value = '';
@@ -303,7 +291,6 @@ function logoutAdmin() {
   document.getElementById('logmsg').innerHTML = '';
   showView('adminLogin');
 }
-
 function forgotpw() {
   let u = document.getElementById('username').value.trim() || '';
   fetch('/api/forgot_password', {
@@ -318,8 +305,6 @@ function forgotpw() {
       }
   });
 }
-
-// Attendance (Admin)
 function showSection(sec) {
     currentSection = sec;
     for(let s of ['A','B','C','D']) {
@@ -329,7 +314,6 @@ function showSection(sec) {
     let date = document.getElementById('dateInput').value || new Date().toISOString().split('T')[0];
     renderTable(date);
 }
-
 function renderTable(date) {
     let tbody = document.getElementById('attBody');
     tbody.innerHTML = '';
@@ -348,7 +332,6 @@ function renderTable(date) {
         tbody.appendChild(tr);
     });
 }
-
 function setStatus(reg, status, btn) {
     let date = document.getElementById('dateInput').value || new Date().toISOString().split('T')[0];
     if (!attendance[date]) attendance[date] = {};
@@ -357,9 +340,7 @@ function setStatus(reg, status, btn) {
     [...td.children].forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
 }
-
 document.getElementById('dateInput').onchange = function() { renderTable(this.value); };
-
 document.getElementById('saveAllBtn').onclick = function() {
     let date = document.getElementById('dateInput').value || new Date().toISOString().split('T')[0];
     let allAttendance = {};
@@ -380,7 +361,6 @@ document.getElementById('saveAllBtn').onclick = function() {
         }
     });
 };
-
 document.getElementById('downloadBtn').onclick = function() {
     let date = document.getElementById('dateInput').value || new Date().toISOString().split('T')[0];
     fetch('/api/export_absentees/?date=' + date).then(resp => resp.blob()).then(blob => {
@@ -393,7 +373,6 @@ document.getElementById('downloadBtn').onclick = function() {
         a.remove();
     });
 };
-
 document.getElementById('downloadWeeklyBtn').onclick = function() {
     let startDate = document.getElementById('dateInput').value || new Date().toISOString().split('T')[0];
     fetch(`/api/export_weekly_report/?start_date=${startDate}`).then(resp => resp.blob()).then(blob => {
@@ -406,7 +385,6 @@ document.getElementById('downloadWeeklyBtn').onclick = function() {
         a.remove();
     });
 };
-
 function checkStatus() {
     let reg = document.getElementById('checkRegInput').value.trim().toUpperCase();
     let date = document.getElementById('checkDateInput').value;
@@ -420,8 +398,6 @@ function checkStatus() {
         document.getElementById('checkResult').innerText = `${reg} was marked as '${data.status}' on ${date}`;
     });
 }
-
-// Student attendance check (no login, just input and get status)
 function checkStudentAttendance() {
     let regno = document.getElementById('stuUsername').value.trim().toUpperCase();
     let date = document.getElementById('stuDate').value;
@@ -451,17 +427,13 @@ function checkStudentAttendance() {
         }
     });
 }
-
 function logoutStudent() {
     document.getElementById('stuUsername').value = '';
     document.getElementById('stuDate').value = '';
     document.getElementById('stuLoginMsg').innerText = '';
     document.getElementById('stuAttendanceResult').innerText = '';
 }
-
-window.onload = function() {
-    showView('adminLogin');
-};
+window.onload = function() { showView('adminLogin'); };
 </script>
 </body>
 </html>
