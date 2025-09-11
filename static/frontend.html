@@ -2,15 +2,15 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8" />
-    <title>Attendance Management Login</title>
+    <title>Attendance Management System</title>
     <style>
         body { font-family: Arial, sans-serif; background: #f7f7f7;}
         .container { max-width: 920px; margin: 32px auto; background: #fff; padding: 24px; border-radius: 14px; box-shadow: 0 2px 8px rgba(0,0,0,.08);}
-        .loginbox { max-width: 340px; margin: 60px auto; background: #fff; padding: 24px; border-radius: 16px;}
+        .loginbox { max-width: 340px; margin: 40px auto; background: #fff; padding: 24px; border-radius: 16px;}
         h2 { text-align: center; margin-bottom: 18px;}
-        label { margin-top:12px;}
+        label { margin-top:12px; display: block;}
         input[type="text"], input[type="password"], input[type="date"] { padding:8px; margin:6px 0 10px 0; width:100%; border-radius:6px; border:1px solid #ccc;}
-        button { background: #298afb; color: white; border: none; padding: 10px 18px; border-radius: 6px; font-size: 16px; cursor: pointer; margin-bottom: 10px;}
+        button { background: #298afb; color: white; border: none; padding: 10px 18px; border-radius: 6px; font-size: 16px; cursor: pointer; margin-top: 10px;}
         button:hover { background: #2374d7;}
         th { background: #ffe59b;}
         tr:nth-child(even) { background: #f9f9f9;}
@@ -22,7 +22,7 @@
         .permission-btn { background: #f7d8b7; }
         .active { border: 2px solid #222; box-shadow: 0 0 8px #ddd;}
         .hidden { display:none; }
-        #dateInput, #studentCheckDateInput { padding:6px; border-radius:6px; border:1px solid #ccc; margin-right:10px;}
+        #dateInput { padding:6px; border-radius:6px; border:1px solid #ccc; margin-right:10px;}
         .btn-wide { padding: 8px 20px; border-radius:6px; border:none; cursor:pointer; margin:14px 4px; }
         #saveAllBtn { background:#4a654a; color:#fff;}
         #downloadBtn { background:#795548; color:#fff;}
@@ -30,11 +30,19 @@
         .error { color: #f44336;}
         .success { color: #16c79a;}
         .section-buttons button { margin-right: 10px; }
+        nav { text-align: center; margin-top: 20px; }
+        nav button { margin: 0 10px; padding: 8px 16px; cursor: pointer; }
     </style>
 </head>
 <body>
-<!-- Admin Login Box -->
-<div id="loginbox" class="loginbox">
+
+<nav>
+    <button onclick="showView('adminLogin')">Admin Login</button>
+    <button onclick="showView('studentLogin')">Student Login</button>
+</nav>
+
+<!-- Admin Login -->
+<div id="adminLogin" class="loginbox">
     <h2>Admin Login</h2>
     <div id="logmsg"></div>
     <label for="username">Username:</label>
@@ -46,18 +54,7 @@
     <a href="#" onclick="forgotpw();return false;" style="color:#298afb;">Forgot Password?</a>
 </div>
 
-<!-- Student Login Box -->
-<div id="studentLoginBox" class="loginbox">
-    <h2>Student Login</h2>
-    <div id="studentLogMsg"></div>
-    <label for="studentRegNo">Registration Number:</label>
-    <input type="text" id="studentRegNo" autocomplete="username" />
-    <label for="studentPassword">Password:</label>
-    <input type="password" id="studentPassword" autocomplete="current-password" />
-    <button onclick="studentLogin()">Login</button>
-</div>
-
-<!-- Admin Attendance Management Section -->
+<!-- Admin Attendance Section -->
 <div id="attendance" class="container hidden">
     <h2>Attendance Management Chart</h2>
     <div id="savemsg"></div>
@@ -89,18 +86,22 @@
         </thead>
         <tbody id="attBody"></tbody>
     </table>
+    <button onclick="logoutAdmin()" style="margin-top:20px; background:#d9534f;">Logout</button>
 </div>
 
-<!-- Student Attendance Check Section -->
-<div id="studentAttendanceCheck" class="container hidden">
-    <h2>Check Your Attendance</h2>
-    <label for="studentCheckDateInput">Date:</label>
-    <input type="date" id="studentCheckDateInput" />
-    <br /><br />
-    <input type="text" id="studentCheckRegInput" placeholder="Registration Number" style="width:220px; display:inline-block;" readonly />
-    <button onclick="checkStudentStatus()" style="background:#198754;">Check Attendance</button>
-    <div id="studentCheckResult" style="margin-top:10px; font-weight:bold;"></div>
+<!-- Student Login -->
+<div id="studentLogin" class="loginbox hidden">
+    <h2>Student Attendance Check</h2>
+    <div id="stuLoginMsg" class="error"></div>
+    <label for="stuUsername">Enter Your Registration Number:</label>
+    <input type="text" id="stuUsername" placeholder="e.g. 23KD1A05H2" />
+    <label for="stuDate">Select Date:</label>
+    <input type="date" id="stuDate" />
+    <button onclick="checkStudentAttendance()">Check Attendance</button>
+    <div id="stuAttendanceResult" style="margin-top:15px; font-weight:bold;"></div>
+    <button onclick="logoutStudent()" style="margin-top:20px; background:#d9534f;">Logout</button>
 </div>
+
 <script>
 const sectionStudents = {
   A: [
@@ -158,9 +159,7 @@ const sectionStudents = {
     ['23KD1A05I0', 'P VINEELA'],['23KD1A05I1', 'P SUMANTH'],['23KD1A05I2', 'P GEETHANJALI'],['23KD1A05I3', 'P DEEPIKA'],
     ['23KD1A05I4', 'P AMRUTHA'],['23KD1A05I6', 'P SRIVALLI'],['23KD1A05I7', 'P JAHNAVI'],['23KD1A05I8', 'P SURENDRA REDDY'],
     ['23KD1A05I9', 'P SRAVYA'],['23KD1A05J0', 'P SAHITH'],['23KD1A05J1', 'P BHAVYA SRI'],['23KD1A05J2', 'P MEENAKSHI'],
-    ['23KD1A05J3', 'P PRIYANKA'],['23KD1A05J4', 'P CHITTI BABU'],['23KD1A05J5', 'P MYTHRI'],['23KD1A05J6', 'JAHNAVI LATHA'],
-    ['23KD1A05J8', 'P VARUDHINI'],['24KD5A0512', 'P RENUKA'],['24KD5A0513', 'P NAGESHWARI'],['24KD5A0514', 'P VINAY'],
-    ['24KD5A0515', 'R PREMKUMAR'],['24KD5A0516', 'S SUJATHA'],['24KD5A0517', 'S KUMARRAJA']
+    ['23KD1A05J3', 'P PRIYANKA'],['23KD1A05J4', 'P CHITTI BABU'],['23KD1A05J5', 'P MYTHRI'],['23KD1A05J6', 'JAHNAVI LATHA']
   ],
   D: [
     ['23KD1A05J9', 'PORAPU PADMA'],['23KD1A05K0', 'POTHINA APPALA DURGA GUNA MANASA SREE'],['23KD1A05K1', 'POTIPARTHI CHARISHMA'],['23KD1A05K2', 'POTIPIREDDI VANDANA'],
@@ -170,24 +169,21 @@ const sectionStudents = {
     ['23KD1A05L5', 'REGETI SOWJANYA'],['23KD1A05L6', 'RIKKA KALYANI'],['23KD1A05L7', 'SAMBANA HARSHIT'],['23KD1A05L8', 'SANAPATHI MANJULA'],
     ['23KD1A05L9', 'SARIKI HEMANTH'],['23KD1A05M0', 'SATHI CHANDRA SEKHAR MANIKANTA REDDY'],['23KD1A05M1', 'SATHI SASINDRA CHAITANYA REDDY'],['23KD1A05M2', 'SATYAVARAPU RADHA'],
     ['23KD1A05M3', 'SETTY MOUNIKA TEJASWINI'],['23KD1A05M4', 'SHAIK ABEED'],['23KD1A05M5', 'SHEIK UMAR RAFEE'],['23KD1A05M6', 'SIDDA HITANSHA'],
-    ['23KD1A05M7', 'SIMHADRI YASASWI'],['23KD1A05M8', 'SINGARAPU DIVYA'],['23KD1A05M9', 'SINKA VENU SREE'],['23KD1A05N0', 'SIRUVURI RAMYA'],
-    ['23KD1A05N1', 'SRIDHARALA JASWANTH'],['23KD1A05N2', 'SUNKARI INDHU'],['23KD1A05N3', 'SUNKARI MOUNIKA'],['23KD1A05N4', 'SUNKARI VENKATA APOORVA'],
-    ['23KD1A05N5', 'TADANGI KARTHIK'],['23KD1A05N6', 'TALADA VINAY KUMAR'],['23KD1A05N7', 'TALLAPUDI SALMON RAJ'],['23KD1A05N8', 'TANAVARAPU HARSHA VARDHAN'],
-    ['23KD1A05N9', 'TELUKALA VIJAYKUMAR SAHU'],['23KD1A05O0', 'THAPPITA CHANDRA SEKHAR'],['23KD1A05O1', 'THONANGI KIRAN REDDY'],['23KD1A05O2', 'TIRUVEEDHULA KARTHIK'],
-    ['23KD1A05O3', 'TOMPALA KARTHIK'],['23KD1A05O4', 'TULA SAI NAGA VENKATA SIRI'],['23KD1A05O5', 'UMMIREDDY GAYATRI'],['23KD1A05O6', 'UPPILI HARSHAVARDHAN'],
-    ['23KD1A05O7', 'UTTARAVELLI NAVEEN KUMAR'],['23KD1A05O8', 'UYAKA SAILAJA'],['23KD1A05O9', 'VARANASI KEERTHANA'],['23KD1A05P0', 'VEJENDLA CHATURYA PHANI'],
-    ['23KD1A05P1', 'VELUVALI  NAVYA SREE'],['23KD1A05P2', 'VEMPADAPU SUCHITRA'],['23KD1A05P3', 'VEMPALI SAMPATH KUMAR'],['23KD1A05P4', 'VENDRAPU RAMYA SREE'],
-    ['23KD1A05P5', 'VIJINIGIRI LATHA'],['23KD1A05P6', 'VUDA GEETHA MADHURI'],['23KD1A05P7', 'YANDRAPU RAJESWARI'],['23KD1A05P8', 'YARABALA USHA SREE'],
-    ['23KD1A05P9', 'YAVARNA SIREESHA'],['23KD1A05Q0', 'YEJJALA SIRI'],['23KD1A05Q1', 'YENDUVA VIKRAMADITYA NAIDU'],['23KD1A05Q2', 'YERRAMSETTI GOVARDHINI'],
-    ['23KD1A05Q3', 'YERUBOTHU THANEESH KARTHEEK'],['24KD5A0518', 'SURAVARAPU DURGAPRASAD'],['24KD5A0519', 'TEEDA SIRISHA'],['24KD5A0520', 'TEJA SREE PENTYALA'],
-    ['24KD5A0521', 'TETAKALI LAVANYA'],['24KD5A0522', 'VADAVALASA INDRASENA'],['24KD5A0523', 'YENUGULA ANITHA'],['24KD5A0524', 'YERLAJELLA KARTHIK'],
-    ['24KD5A0525', 'REDDI SANDHYA']
+    ['23KD1A05M7', 'SIMHADRI YASASWI'],['23KD1A05M8', 'SINGARAPU DIVYA'],['23KD1A05M9', 'SINKA VENU SREE'],['23KD1A05N0', 'SIRUVURI RAMYA']
   ]
 };
-let attendance = {}; // {date: {reg: status}}
+
+let attendance = {};
 let currentSection = 'A';
 
-// Admin Functions
+function showView(viewId) {
+    document.getElementById('adminLogin').classList.add('hidden');
+    document.getElementById('attendance').classList.add('hidden');
+    document.getElementById('studentLogin').classList.add('hidden');
+    document.getElementById('studentAttendanceCheck').classList.add('hidden');
+    document.getElementById(viewId).classList.remove('hidden');
+}
+
 function login() {
     let u = document.getElementById('username').value.trim();
     let p = document.getElementById('password').value.trim();
@@ -197,9 +193,7 @@ function login() {
         body: JSON.stringify({username:u, password:p})
     }).then(resp => resp.json()).then(data => {
         if(data.success){
-            document.getElementById('loginbox').classList.add('hidden');
-            document.getElementById('studentLoginBox').classList.add('hidden');
-            document.getElementById('attendance').classList.remove('hidden');
+            showView('attendance');
             let today = new Date().toISOString().split('T')[0];
             document.getElementById('dateInput').value = today;
             document.getElementById('checkDateInput').value = today;
@@ -209,6 +203,15 @@ function login() {
         }
     });
 }
+
+function logoutAdmin() {
+    attendance = {};
+    document.getElementById('username').value = '';
+    document.getElementById('password').value = '';
+    document.getElementById('logmsg').innerHTML = '';
+    showView('adminLogin');
+}
+
 function forgotpw() {
     let u = document.getElementById('username').value.trim() || '';
     fetch('/api/forgot_password', {
@@ -219,15 +222,17 @@ function forgotpw() {
         if(data.success){
             document.getElementById('logmsg').innerHTML = '<div class="success">Reset link sent to admin email.</div>';
         } else {
-            document.getElementById('logmsg').innerHTML = '<div class="error">' + data.error + '</div>';
+            document.getElementById('logmsg').innerHTML = `<div class="error">${data.error}</div>`;
         }
     });
 }
+
 function showSection(sec) {
   currentSection = sec;
   let date = document.getElementById('dateInput').value || new Date().toISOString().split('T')[0];
   renderTable(date);
 }
+
 function renderTable(date) {
     let tbody = document.getElementById('attBody');
     tbody.innerHTML = '';
@@ -246,6 +251,7 @@ function renderTable(date) {
         tbody.appendChild(tr);
     });
 }
+
 function setStatus(reg, status, btn) {
     let date = document.getElementById('dateInput').value || new Date().toISOString().split('T')[0];
     if (!attendance[date]) attendance[date] = {};
@@ -254,9 +260,11 @@ function setStatus(reg, status, btn) {
     [...td.children].forEach(b => b.classList.remove('active'));
     btn.classList.add('active');
 }
+
 document.getElementById('dateInput').onchange = function() {
     renderTable(this.value);
 };
+
 document.getElementById('saveAllBtn').onclick = function() {
     let date = document.getElementById('dateInput').value || new Date().toISOString().split('T')[0];
     let allAttendance = {};
@@ -277,29 +285,33 @@ document.getElementById('saveAllBtn').onclick = function() {
         }
     });
 };
+
 document.getElementById('downloadBtn').onclick = function() {
     let date = document.getElementById('dateInput').value || new Date().toISOString().split('T')[0];
-    let allAttendance = {};
-    ['A','B','C','D'].forEach(sec => {
-        sectionStudents[sec].forEach(([reg, name]) => {
-            let status = (attendance[date] && attendance[date][reg]) || "Present";
-            allAttendance[reg] = {name: name, status: status, section: sec};
-        });
-    });
-    fetch('/api/save', {
-        method: 'POST',
-        headers: {'Content-Type':'application/json'},
-        body: JSON.stringify({date: date, attendance: allAttendance})
-    }).then(resp => resp.json()).then(data => {
-        if(data.success){
-            window.open('/api/export_absentees/?date=' + date, '_blank');
-        }
+    fetch('/api/export_absentees/?date=' + date).then(resp => resp.blob()).then(blob => {
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `absentees_permissions_${date}.xlsx`;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
     });
 };
+
 document.getElementById('downloadWeeklyBtn').onclick = function() {
     let startDate = document.getElementById('dateInput').value || new Date().toISOString().split('T')[0];
-    window.open(`/api/export_weekly_report/?start_date=${startDate}`, '_blank');
+    fetch(`/api/export_weekly_report/?start_date=${startDate}`).then(resp => resp.blob()).then(blob => {
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `weekly_attendance_${startDate}.xlsx`;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+    });
 };
+
 function checkStatus() {
     let reg = document.getElementById('checkRegInput').value.trim().toUpperCase();
     let date = document.getElementById('checkDateInput').value;
@@ -314,58 +326,55 @@ function checkStatus() {
     });
 }
 
-// Student login and attendance checking functions
 function studentLogin() {
-    let regno = document.getElementById('studentRegNo').value.trim().toUpperCase();
-    let password = document.getElementById('studentPassword').value.trim();
-    if(!regno || !password){
-        document.getElementById('studentLogMsg').innerHTML = '<div class="error">Please enter registration number and password</div>';
+    let username = document.getElementById('stuUsername').value.trim().toUpperCase();
+    if(!username){
+        document.getElementById('stuLoginMsg').innerText = 'Enter your registration number';
         return;
     }
     fetch('/api/student_login', {
         method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({regno: regno, password: password})
+        headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({username})
     }).then(resp => resp.json()).then(data => {
         if(data.success){
-            document.getElementById('loginbox').classList.add('hidden');
-            document.getElementById('studentLoginBox').classList.add('hidden');
-            document.getElementById('attendance').classList.add('hidden');
+            document.getElementById('studentLogin').classList.add('hidden');
             document.getElementById('studentAttendanceCheck').classList.remove('hidden');
-            document.getElementById('studentCheckRegInput').value = regno;
-            document.getElementById('studentCheckRegInput').setAttribute('readonly', true);
-            let today = new Date().toISOString().split('T')[0];
-            document.getElementById('studentCheckDateInput').value = today;
-            document.getElementById('studentCheckResult').innerText = '';
+            document.getElementById('stuAttendanceResult').innerText = '';
+            document.getElementById('stuDate').value = new Date().toISOString().split('T')[0];
+            document.getElementById('stuLoginMsg').innerText = '';
         } else {
-            document.getElementById('studentLogMsg').innerHTML = '<div class="error">' + data.error + '</div>';
+            document.getElementById('stuLoginMsg').innerText = data.error || "Invalid registration number";
         }
     });
 }
-function checkStudentStatus() {
-    let regno = document.getElementById('studentCheckRegInput').value.trim().toUpperCase();
-    let date = document.getElementById('studentCheckDateInput').value;
-    if(!regno || !date){
-        document.getElementById('studentCheckResult').innerHTML = '<span class="error">Enter registration number and date</span>';
+
+function checkStudentAttendance() {
+    let regno = document.getElementById('stuUsername').value.trim().toUpperCase();
+    let date = document.getElementById('stuDate').value;
+    if(!date){
+        document.getElementById('stuAttendanceResult').innerText = "Please select a date";
         return;
     }
-    fetch(`/api/check?regno=${regno}&date=${date}`)
+    fetch(`/api/student/check_attendance?regno=${regno}&date=${date}`)
     .then(resp => resp.json())
     .then(data => {
-        document.getElementById('studentCheckResult').innerText = `${regno} was marked as '${data.status}' on ${date}`;
+        document.getElementById('stuAttendanceResult').innerText = `Your attendance on ${date} is: ${data.status}`;
     });
 }
 
-window.onload = function() {
-    document.getElementById('attendance').classList.add('hidden');
+function logoutStudent() {
+    document.getElementById('stuUsername').value = '';
+    document.getElementById('stuDate').value = '';
+    document.getElementById('stuLoginMsg').innerText = '';
+    document.getElementById('stuAttendanceResult').innerText = '';
     document.getElementById('studentAttendanceCheck').classList.add('hidden');
-    document.getElementById('loginbox').classList.remove('hidden');
-    document.getElementById('studentLoginBox').classList.remove('hidden');
-    let today = new Date().toISOString().split('T')[0];
-    document.getElementById('checkDateInput').value = today;
-    document.getElementById('dateInput').value = today;
-};
+    document.getElementById('studentLogin').classList.remove('hidden');
+}
 
+window.onload = function() {
+    showView('adminLogin');
+};
 </script>
 </body>
 </html>
