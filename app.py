@@ -123,41 +123,39 @@ def export_weekly_report():
     except ValueError:
         return jsonify({"error": "Invalid date format. Use YYYY-MM-DD."}), 400
 
-    attendance_summary = {}
-    # Correct weekly accumulation
-    for day_offset in range(7):
-        current_date = start_date + timedelta(days=day_offset)
-        current_date_str = current_date.isoformat()
-        day_data = attendance_data.get(current_date_str, {})
-        for regno, info in day_data.items():
-            if regno not in attendance_summary:
-                attendance_summary[regno] = {
-                    "name": info.get("name", ""),
-                    "Present": 0,
-                    "Absent": 0,
-                    "Permission": 0
-                }
-            status_raw = info.get("status", "Absent")
-            status = status_raw.capitalize()
-            if status not in ["Present", "Absent", "Permission"]:
-                status = "Absent"
-            attendance_summary[regno][status] += 1
+    week_dates = [(start_date + timedelta(days=i)).isoformat() for i in range(7)]
 
-    if not attendance_summary:
+    # Gather all unique students (regno → name) present in any of the 7 days
+    all_students = {}
+    for date in week_dates:
+        for regno, info in attendance_data.get(date, {}).items():
+            if regno not in all_students:
+                all_students[regno] = info.get('name', "")
+
+    # Build report rows: one per student
+    report_rows = []
+    for regno, name in sorted(all_students.items()):
+        row = {'Reg No': regno, 'Name': name}
+        for date in week_dates:
+            info = attendance_data.get(date, {}).get(regno)
+            status = info.get('status', '') if info else ""
+            row[date] = status
+        report_rows.append(row)
+
+    if not report_rows:
         return "No attendance data found for this week", 404
 
+    df = pd.DataFrame(report_rows)
     output = BytesIO()
     with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
-        df = pd.DataFrame.from_dict(attendance_summary, orient='index')
-        df.reset_index(inplace=True)
-        df.rename(columns={"index": "Reg No"}, inplace=True)
         df.to_excel(writer, sheet_name="Weekly Attendance", index=False)
         workbook = writer.book
         worksheet = writer.sheets["Weekly Attendance"]
         header_format = workbook.add_format({'bold': True, 'font_color': 'blue', 'font_size': 14})
-        worksheet.write(0, 0, f"Weekly Attendance Report: {start_date_str} to {(start_date + timedelta(days=6)).isoformat()}", header_format)
+        week_str = f"{week_dates[0]} to {week_dates[-1]}"
+        worksheet.write(0, 0, f"Weekly Attendance Breakdown: {week_str}", header_format)
     output.seek(0)
-    filename = f"weekly_attendance_{start_date_str}_to_{(start_date + timedelta(days=6)).isoformat()}.xlsx"
+    filename = f"weekly_attendance_breakdown_{week_dates[0]}_to_{week_dates[-1]}.xlsx"
     return send_file(
         output,
         mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
@@ -167,3 +165,4 @@ def export_weekly_report():
 
 if __name__ == '__main__':
     app.run(port=5000, debug=True)
+
