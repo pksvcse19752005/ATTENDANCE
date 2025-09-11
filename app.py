@@ -1,36 +1,25 @@
-from flask import Flask, request, jsonify, send_from_directory, send_file
+from flask import Flask, request, jsonify, send_file, send_from_directory
 from flask_cors import CORS
-from email.mime.text import MIMEText
 import smtplib
+from email.mime.text import MIMEText
 from io import BytesIO
-from datetime import datetime, timedelta
-import pandas as pd
 import random
 import string
+import pandas as pd
+from datetime import datetime, timedelta
 
 app = Flask(__name__)
 CORS(app)
 
-# Admin user credentials
-admin_users = {
+users = {
     "DEPTCSE": "pksv"
 }
 
-# Dummy student credentials (regno: password)
-student_users = {
-    "23KD1A05D3": "studentpass1",
-    "23KD1A0525": "studentpass2"
-    # Add more registrations and passwords here
-}
-
-# Attendance data {date: {regno: {"name": name, "status": status, "section": section}}}
 attendance_data = {}
 
-# Email credentials for password reset (update securely)
 EMAIL_ADDRESS = "vinaypydi85@gmail.com"
-EMAIL_PASSWORD = "pxbntsohbnbojhtw"  # Use app password safely
+EMAIL_PASSWORD = "pxbntsohbnbojhtw"  # use environment vars in production
 
-# Serve frontend HTML
 @app.route('/')
 def home():
     return send_from_directory('static', 'frontend.html')
@@ -39,37 +28,45 @@ def home():
 def reset_password():
     return "<h2>Password Reset Page - Feature under construction.</h2>"
 
-# Admin login endpoint
+# Admin login
 @app.route('/api/login', methods=['POST'])
-def admin_login():
+def login():
     data = request.json
     username = data.get('username')
     password = data.get('password')
-    if username in admin_users and admin_users[username] == password:
+    if username in users and users[username] == password:
         return jsonify({"success": True})
     return jsonify({"success": False, "error": "Invalid username or password"})
 
-# Student login endpoint
-@app.route('/api/student_login', methods=['POST'])
-def student_login():
+def generate_temp_password(length=8):
+    chars = string.ascii_letters + string.digits + string.punctuation
+    return ''.join(random.choice(chars) for _ in range(length))
+
+@app.route('/api/forgot_password', methods=['POST'])
+def forgot_password():
     data = request.json
-    regno = data.get('regno')
-    password = data.get('password')
-    if regno in student_users and student_users[regno] == password:
-        return jsonify({"success": True})
-    return jsonify({"success": False, "error": "Invalid registration number or password"})
+    username = data.get('username')
+    if username in users:
+        try:
+            temp_password = generate_temp_password()
+            users[username] = temp_password
+            send_temp_password_email(temp_password)
+            return jsonify({"success": True})
+        except Exception:
+            return jsonify({"success": False, "error": "Failed to send reset email"})
+    return jsonify({"success": False, "error": "Username not found"})
 
-# Check attendance status (for admin and students)
-@app.route('/api/check', methods=['GET'])
-def check_attendance():
-    regno = request.args.get('regno')
-    date = request.args.get('date')
-    if not regno or not date:
-        return jsonify({"status": "Absent"})
-    status = attendance_data.get(date, {}).get(regno, {}).get('status', "Absent")
-    return jsonify({"status": status})
+def send_temp_password_email(temp_password):
+    msg = MIMEText(f'Your temporary password is: {temp_password}\nPlease use this password to login and change it immediately.')
+    msg['Subject'] = 'Your Temporary Password'
+    msg['From'] = EMAIL_ADDRESS
+    msg['To'] = EMAIL_ADDRESS
+    server = smtplib.SMTP_SSL('smtp.gmail.com', 465)
+    server.login(EMAIL_ADDRESS, EMAIL_PASSWORD)
+    server.send_message(msg)
+    server.quit()
 
-# Save attendance (admin only)
+# Save attendance (admin)
 @app.route('/api/save', methods=['POST'])
 def save_attendance():
     data = request.json
@@ -80,38 +77,44 @@ def save_attendance():
     attendance_data[date] = attendance
     return jsonify({"success": True})
 
-# Generate random temporary password
-def generate_temp_password(length=8):
-    chars = string.ascii_letters + string.digits + string.punctuation
-    return ''.join(random.choice(chars) for _ in range(length))
+# Check individual attendance status (admin)
+@app.route('/api/check')
+def check_attendance():
+    regno = request.args.get('regno')
+    date = request.args.get('date')
+    if not regno or not date:
+        return jsonify({"status": "Absent"})
+    status = attendance_data.get(date, {}).get(regno, {}).get('status', "Absent")
+    return jsonify({"status": status})
 
-# Send email with temporary password
-def send_temp_password_email(temp_password):
-    msg = MIMEText(f'Your temporary password is: {temp_password}\nPlease use this password to login and change it immediately.')
-    msg['Subject'] = 'Your Temporary Password'
-    msg['From'] = EMAIL_ADDRESS
-    msg['To'] = EMAIL_ADDRESS  
-    server = smtplib.SMTP_SSL('smtp.gmail.com', 465)
-    server.login(EMAIL_ADDRESS, EMAIL_PASSWORD)
-    server.send_message(msg)
-    server.quit()
-
-# Forgot password for admin
-@app.route('/api/forgot_password', methods=['POST'])
-def forgot_password():
+# Student "login" (just checks if regno exists)
+@app.route('/api/student_login', methods=['POST'])
+def student_login():
     data = request.json
-    username = data.get('username')
-    if username in admin_users:
-        try:
-            temp_password = generate_temp_password()
-            admin_users[username] = temp_password
-            send_temp_password_email(temp_password)
-            return jsonify({"success": True})
-        except Exception:
-            return jsonify({"success": False, "error": "Failed to send reset email"})
-    return jsonify({"success": False, "error": "Username not found"})
+    regno = data.get('username')
+    if not regno:
+        return jsonify({"success": False, "error": "Registration number required"})
+    # Check if regno exists in any attendance data
+    found = False
+    for day in attendance_data.values():
+        if regno in day:
+            found = True
+            break
+    if found:
+        return jsonify({"success": True})
+    return jsonify({"success": False, "error": "Invalid registration number"})
 
-# Export absentees and permission as Excel
+# Student check attendance for specific date
+@app.route('/api/student/check_attendance')
+def student_check_attendance():
+    regno = request.args.get('regno')
+    date = request.args.get('date')
+    if not regno or not date:
+        return jsonify({"status": "Absent"})
+    status = attendance_data.get(date, {}).get(regno, {}).get('status', "Absent")
+    return jsonify({"status": status})
+
+# Export absentee and permission report (admin)
 @app.route('/api/export_absentees/')
 def export_absentees():
     date = request.args.get('date')
@@ -141,7 +144,7 @@ def export_absentees():
         download_name=filename
     )
 
-# Export weekly attendance report as Excel
+# Export weekly attendance report (admin)
 @app.route('/api/export_weekly_report/')
 def export_weekly_report():
     start_date_str = request.args.get('start_date')
@@ -151,38 +154,38 @@ def export_weekly_report():
         start_date = datetime.strptime(start_date_str, "%Y-%m-%d").date()
     except ValueError:
         return jsonify({"error": "Invalid date format. Use YYYY-MM-DD."}), 400
-    attendance_summary = {}
-    for day_offset in range(7):
-        current_date = start_date + timedelta(days=day_offset)
-        current_date_str = current_date.isoformat()
-        day_data = attendance_data.get(current_date_str, {})
-        for regno, info in day_data.items():
-            if regno not in attendance_summary:
-                attendance_summary[regno] = {
-                    "name": info.get("name", ""),
-                    "Present": 0,
-                    "Absent": 0,
-                    "Permission": 0
-                }
-            status = info.get("status", "Absent")
-            if status in attendance_summary[regno]:
-                attendance_summary[regno][status] += 1
-            else:
-                attendance_summary[regno]["Absent"] += 1
-    if not attendance_summary:
+
+    week_dates = [(start_date + timedelta(days=i)).isoformat() for i in range(7)]
+
+    all_students = {}
+    for date in week_dates:
+        for regno, info in attendance_data.get(date, {}).items():
+            if regno not in all_students:
+                all_students[regno] = info.get('name', '')
+
+    report_rows = []
+    for regno, name in sorted(all_students.items()):
+        row = {'Reg No': regno, 'Name': name}
+        for date in week_dates:
+            day_data = attendance_data.get(date, {})
+            info = day_data.get(regno)
+            row[date] = info.get('status', 'Absent') if info else 'Absent'
+        report_rows.append(row)
+
+    if not report_rows:
         return "No attendance data found for this week", 404
+
+    df = pd.DataFrame(report_rows)
     output = BytesIO()
     with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
-        df = pd.DataFrame.from_dict(attendance_summary, orient='index')
-        df.reset_index(inplace=True)
-        df.rename(columns={"index": "Reg No"}, inplace=True)
-        df.to_excel(writer, sheet_name="Weekly Attendance", index=False)
+        df.to_excel(writer, sheet_name='Weekly Attendance', index=False)
         workbook = writer.book
-        worksheet = writer.sheets["Weekly Attendance"]
+        worksheet = writer.sheets['Weekly Attendance']
         header_format = workbook.add_format({'bold': True, 'font_color': 'blue', 'font_size': 14})
-        worksheet.write(0, 0, f"Weekly Attendance Report: {start_date_str} to {(start_date + timedelta(days=6)).isoformat()}", header_format)
+        week_range = f"{week_dates[0]} to {week_dates[-1]}"
+        worksheet.write(0, 0, f"Weekly Attendance Breakdown: {week_range}", header_format)
     output.seek(0)
-    filename = f"weekly_attendance_{start_date_str}to{(start_date + timedelta(days=6)).isoformat()}.xlsx"
+    filename = f"weekly_attendance_breakdown_{week_dates[0]}_to_{week_dates[-1]}.xlsx"
     return send_file(
         output,
         mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
@@ -191,4 +194,4 @@ def export_weekly_report():
     )
 
 if __name__ == '__main__':
-    app.run(port=5000, debug=True)
+    app.run(host='0.0.0.0', port=int(os.environ.get("PORT", 5000)), debug=True)
