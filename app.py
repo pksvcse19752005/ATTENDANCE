@@ -13,32 +13,25 @@ app = Flask(__name__)
 CORS(app)
 
 users = {
-    "DEPTCSE": "Pksvcse1975@"  # Updated with your new password
+    "DEPTCSE": "Pksvcse1975@"
 }
 
 attendance_data = {}
 
-# Your email is fixed here
 ADMIN_EMAIL = "vinaypydi85@gmail.com"
-
-# Read the app password (or SMTP password) ONLY from environment
 EMAIL_ADDRESS = os.environ.get("EMAIL_ADDRESS", ADMIN_EMAIL)
 EMAIL_PASSWORD = os.environ.get("EMAIL_PASSWORD")
 
 if not EMAIL_PASSWORD:
-    # You must set EMAIL_PASSWORD in environment before running
     raise RuntimeError("Set EMAIL_PASSWORD as an environment variable")
-
 
 @app.route('/')
 def home():
     return send_from_directory('static', 'frontend.html')
 
-
 @app.route('/reset-password')
 def reset_password():
     return "<h2>Password Reset Page - Feature under construction.</h2>"
-
 
 @app.route('/api/login', methods=['POST'])
 def login():
@@ -49,11 +42,9 @@ def login():
         return jsonify({"success": True})
     return jsonify({"success": False, "error": "Invalid username or password"})
 
-
 def generate_temp_password(length=8):
     chars = string.ascii_letters + string.digits + string.punctuation
     return ''.join(secrets.choice(chars) for _ in range(length))
-
 
 @app.route('/api/forgot_password', methods=['POST'])
 def forgot_password():
@@ -69,20 +60,18 @@ def forgot_password():
             return jsonify({"success": False, "error": "Failed to send reset email"})
     return jsonify({"success": False, "error": "Username not found"})
 
-
 def send_temp_password_email(temp_password):
-msg = MIMEText(f'''Username requested reset.Your temporary password is: {temp_password}
+    msg = MIMEText(f'''Username requested reset.
+Your temporary password is: {temp_password}
 Use this password to login and change it immediately.''')
     msg['Subject'] = 'Your Temporary Password'
     msg['From'] = EMAIL_ADDRESS
-    msg['To'] = ADMIN_EMAIL  # always your email
+    msg['To'] = ADMIN_EMAIL
 
     server = smtplib.SMTP_SSL('smtp.gmail.com', 465)
     server.login(EMAIL_ADDRESS, EMAIL_PASSWORD)
     server.send_message(msg)
     server.quit()
-
-
 @app.route('/api/save', methods=['POST'])
 def save_attendance():
     data = request.json
