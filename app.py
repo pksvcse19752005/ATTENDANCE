@@ -72,6 +72,7 @@ Use this password to login and change it immediately.''')
     server.login(EMAIL_ADDRESS, EMAIL_PASSWORD)
     server.send_message(msg)
     server.quit()
+
 @app.route('/api/save', methods=['POST'])
 def save_attendance():
     data = request.json
@@ -82,7 +83,6 @@ def save_attendance():
     attendance_data[date] = attendance
     return jsonify({"success": True})
 
-
 @app.route('/api/check')
 def check_attendance():
     regno = request.args.get('regno')
@@ -92,19 +92,16 @@ def check_attendance():
     status = attendance_data.get(date, {}).get(regno, {}).get('status', "Absent")
     return jsonify({"status": status})
 
-
 @app.route('/api/student_login', methods=['POST'])
 def student_login():
     data = request.json
     regno = data.get('username')
     if not regno:
         return jsonify({"success": False, "error": "Registration number required"})
-    # student exists if in any day's attendance data
     for day in attendance_data.values():
         if regno in day:
             return jsonify({"success": True})
     return jsonify({"success": False, "error": "Invalid registration number"})
-
 
 @app.route('/api/student/check_attendance')
 def student_check_attendance():
@@ -114,7 +111,6 @@ def student_check_attendance():
         return jsonify({"status": "Absent"})
     status = attendance_data.get(date, {}).get(regno, {}).get('status', "Absent")
     return jsonify({"status": status})
-
 
 @app.route('/api/export_absentees/')
 def export_absentees():
@@ -144,7 +140,6 @@ def export_absentees():
         as_attachment=True,
         download_name=filename
     )
-
 
 @app.route('/api/export_weekly_report/')
 def export_weekly_report():
@@ -188,7 +183,6 @@ def export_weekly_report():
         as_attachment=True,
         download_name=filename
     )
-
 
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 5000))
