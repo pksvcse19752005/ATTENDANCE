@@ -1,7 +1,7 @@
 from flask import Flask, request, jsonify, send_file, send_from_directory
 from flask_cors import CORS
 import smtplib
-from email.mime.text import MIMEText
+from email.mime_text import MIMEText
 from io import BytesIO
 import secrets
 import string
@@ -13,21 +13,25 @@ import threading
 app = Flask(__name__)
 CORS(app)
 
-# Usuario y contraseña fija
+# ---------- 1. USERS AND EMAIL CONFIG ----------
+
+# Fixed user and password
 users = {
     "DEPTCSE": "Pksvcse1975@"
 }
 
 attendance_data = {}
 
-# Correo al que llegan las contraseñas (el tuyo)
+# Your own Gmail where you want to receive the password
 ADMIN_EMAIL = "vinaypydi85@gmail.com"
 
-# Correo y contraseña de la cuenta que ENVÍA el mail (variables de entorno)
-EMAIL_ADDRESS = os.environ.get("EMAIL_ADDRESS", ADMIN_EMAIL)
-EMAIL_PASSWORD = os.environ.get("EMAIL_PASSWORD")
+# Gmail account that SENDS the mail (usually same as ADMIN_EMAIL)
+# Set these in Render environment:
+# EMAIL_ADDRESS = your Gmail
+# EMAIL_PASSWORD = 16-char app password you just created
+EMAIL_ADDRESS = os.environ.get("vinaypydi85@gmail.com", ADMIN_EMAIL)
+EMAIL_PASSWORD = os.environ.get("dka sred iixg mexc")
 
-# Aviso si falta la contraseña en entorno
 if not EMAIL_PASSWORD:
     print("WARNING: EMAIL_PASSWORD not set. Forgot password emails will fail.")
 
@@ -39,6 +43,8 @@ def home():
 def reset_password():
     return "<h2>Password Reset Page - Feature under construction.</h2>"
 
+# ---------- 2. LOGIN & FORGOT PASSWORD ----------
+
 @app.route('/api/login', methods=['POST'])
 def login():
     data = request.json
@@ -48,7 +54,7 @@ def login():
         return jsonify({"success": True})
     return jsonify({"success": False, "error": "Invalid username or password"})
 
-# Ya no se usa para generar password, pero lo dejo por si luego quieres
+# not used now, but kept if later you want random temp passwords
 def generate_temp_password(length=8):
     chars = string.ascii_letters + string.digits + string.punctuation
     return ''.join(secrets.choice(chars) for _ in range(length))
@@ -60,13 +66,12 @@ def forgot_password():
 
     if username in users:
         try:
-            # Usar la contraseña REAL actual del usuario
+            # use the REAL current password
             real_password = users[username]
 
-            # Log opcional
             print(f"PASSWORD for {username}: {real_password}")
 
-            # Enviar correo en background
+            # send email in background
             threading.Thread(
                 target=send_password_email,
                 args=(real_password, username)
@@ -92,7 +97,7 @@ Use this password to log in to the portal.
         msg = MIMEText(body)
         msg['Subject'] = 'Attendance Portal Password'
         msg['From'] = EMAIL_ADDRESS
-        msg['To'] = ADMIN_EMAIL  # aquí recibes tú el correo
+        msg['To'] = ADMIN_EMAIL  # you receive it here
 
         server = smtplib.SMTP_SSL('smtp.gmail.com', 465, timeout=10)
         server.login(EMAIL_ADDRESS, EMAIL_PASSWORD)
@@ -101,6 +106,8 @@ Use this password to log in to the portal.
         print("Email sent successfully")
     except Exception as e:
         print(f"Email failed (non-blocking): {e}")
+
+# ---------- 3. ATTENDANCE SAVE / CHECK ----------
 
 @app.route('/api/save', methods=['POST'])
 def save_attendance():
@@ -140,6 +147,8 @@ def student_check_attendance():
         return jsonify({"status": "Absent"})
     status = attendance_data.get(date, {}).get(regno, {}).get('status', "Absent")
     return jsonify({"status": status})
+
+# ---------- 4. EXPORT XLSX FILES ----------
 
 @app.route('/api/export_absentees/')
 def export_absentees():
