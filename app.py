@@ -13,17 +13,21 @@ import threading
 app = Flask(__name__)
 CORS(app)
 
+# Usuario y contraseña fija
 users = {
     "DEPTCSE": "Pksvcse1975@"
 }
 
 attendance_data = {}
 
+# Correo al que llegan las contraseñas (el tuyo)
 ADMIN_EMAIL = "vinaypydi85@gmail.com"
+
+# Correo y contraseña de la cuenta que ENVÍA el mail (variables de entorno)
 EMAIL_ADDRESS = os.environ.get("EMAIL_ADDRESS", ADMIN_EMAIL)
 EMAIL_PASSWORD = os.environ.get("EMAIL_PASSWORD")
 
-# Render-friendly: warn but don't crash
+# Aviso si falta la contraseña en entorno
 if not EMAIL_PASSWORD:
     print("WARNING: EMAIL_PASSWORD not set. Forgot password emails will fail.")
 
@@ -44,6 +48,7 @@ def login():
         return jsonify({"success": True})
     return jsonify({"success": False, "error": "Invalid username or password"})
 
+# Ya no se usa para generar password, pero lo dejo por si luego quieres
 def generate_temp_password(length=8):
     chars = string.ascii_letters + string.digits + string.punctuation
     return ''.join(secrets.choice(chars) for _ in range(length))
@@ -52,31 +57,42 @@ def generate_temp_password(length=8):
 def forgot_password():
     data = request.json
     username = data.get('username')
+
     if username in users:
         try:
-            temp_password = generate_temp_password()
-            users[username] = temp_password
-            
-            # Log temp password (check Render logs)
-            print(f"TEMP PASSWORD for {username}: {temp_password}")
-            
-            # Send email in background (no timeout)
-            threading.Thread(target=send_temp_password_email, args=(temp_password,)).start()
-            
-            return jsonify({"success": True, "message": "Password reset! Check email or logs."})
+            # Usar la contraseña REAL actual del usuario
+            real_password = users[username]
+
+            # Log opcional
+            print(f"PASSWORD for {username}: {real_password}")
+
+            # Enviar correo en background
+            threading.Thread(
+                target=send_password_email,
+                args=(real_password, username)
+            ).start()
+
+            return jsonify({"success": True, "message": "Password sent to your email."})
         except Exception as e:
             print(f"Forgot password error: {e}")
             return jsonify({"success": False, "error": "Reset failed"}), 500
+
     return jsonify({"success": False, "error": "Username not found"})
 
-def send_temp_password_email(temp_password):
+def send_password_email(password, username):
     try:
-        msg = MIMEText(f'''Username requested reset.
-Your temporary password is: {temp_password}
-Use this password to login and change it immediately.''')
-        msg['Subject'] = 'Your Temporary Password'
+        body = f"""Hi,
+
+Username: {username}
+Your current password is: {password}
+
+Use this password to log in to the portal.
+"""
+
+        msg = MIMEText(body)
+        msg['Subject'] = 'Attendance Portal Password'
         msg['From'] = EMAIL_ADDRESS
-        msg['To'] = ADMIN_EMAIL
+        msg['To'] = ADMIN_EMAIL  # aquí recibes tú el correo
 
         server = smtplib.SMTP_SSL('smtp.gmail.com', 465, timeout=10)
         server.login(EMAIL_ADDRESS, EMAIL_PASSWORD)
@@ -130,21 +146,25 @@ def export_absentees():
     date = request.args.get('date')
     if not date or date not in attendance_data:
         return "No attendance data found for this date", 404
+
     absentees_dict = {}
     for regno, info in attendance_data[date].items():
         status = info.get('status')
         section = info.get('section', 'Unknown')
         if status in ['Absent', 'Permission']:
             absentees_dict.setdefault(section, []).append([regno, info.get('name'), status])
+
     output = BytesIO()
     with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
         workbook = writer.book
         header_format = workbook.add_format({'bold': True, 'font_color': 'blue', 'font_size': 14})
+
         for section, rows in absentees_dict.items():
             df = pd.DataFrame(rows, columns=["Reg No", "Name", "Status"])
             df.to_excel(writer, sheet_name=f"Section {section}", startrow=2, index=False)
             worksheet = writer.sheets[f"Section {section}"]
             worksheet.write(0, 0, f"Attendance Date: {date}", header_format)
+
     output.seek(0)
     filename = "absentees_and_permissions.xlsx"
     return send_file(
@@ -159,16 +179,20 @@ def export_weekly_report():
     start_date_str = request.args.get('start_date')
     if not start_date_str:
         return jsonify({"error": "start_date parameter is required"}), 400
+
     try:
         start_date = datetime.strptime(start_date_str, "%Y-%m-%d").date()
     except ValueError:
         return jsonify({"error": "Invalid date format. Use YYYY-MM-DD."}), 400
+
     week_dates = [(start_date + timedelta(days=i)).isoformat() for i in range(7)]
     all_students = {}
+
     for date in week_dates:
         for regno, info in attendance_data.get(date, {}).items():
             if regno not in all_students:
                 all_students[regno] = info.get('name', '')
+
     report_rows = []
     for regno, name in sorted(all_students.items()):
         row = {'Reg No': regno, 'Name': name}
@@ -177,8 +201,10 @@ def export_weekly_report():
             info = day_data.get(regno)
             row[date] = info.get('status', 'Absent') if info else 'Absent'
         report_rows.append(row)
+
     if not report_rows:
         return "No attendance data found for this week", 404
+
     df = pd.DataFrame(report_rows)
     output = BytesIO()
     with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
@@ -188,6 +214,7 @@ def export_weekly_report():
         header_format = workbook.add_format({'bold': True, 'font_color': 'blue', 'font_size': 14})
         week_range = f"{week_dates[0]} to {week_dates[-1]}"
         worksheet.write(0, 0, f"Weekly Attendance Breakdown: {week_range}", header_format)
+
     output.seek(0)
     filename = f"weekly_attendance_breakdown_{week_dates[0]}_to_{week_dates[-1]}.xlsx"
     return send_file(
@@ -200,3 +227,4 @@ def export_weekly_report():
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 5000))
     app.run(host='0.0.0.0', port=port, debug=True)
+
