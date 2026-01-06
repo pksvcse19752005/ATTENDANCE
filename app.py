@@ -71,13 +71,8 @@ def forgot_password():
 
 
 def send_temp_password_email(temp_password):
-    msg = MIMEText(
-        f'Username requested reset.
-'
-        f'Your temporary password is: {temp_password}
-'
-        f'Use this password to login and change it immediately.'
-    )
+msg = MIMEText(f'''Username requested reset.Your temporary password is: {temp_password}
+Use this password to login and change it immediately.''')
     msg['Subject'] = 'Your Temporary Password'
     msg['From'] = EMAIL_ADDRESS
     msg['To'] = ADMIN_EMAIL  # always your email
