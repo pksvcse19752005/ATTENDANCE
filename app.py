@@ -8,6 +8,7 @@ import string
 import pandas as pd
 from datetime import datetime, timedelta
 import os
+import threading
 
 app = Flask(__name__)
 CORS(app)
@@ -22,8 +23,9 @@ ADMIN_EMAIL = "vinaypydi85@gmail.com"
 EMAIL_ADDRESS = os.environ.get("EMAIL_ADDRESS", ADMIN_EMAIL)
 EMAIL_PASSWORD = os.environ.get("EMAIL_PASSWORD")
 
+# Render-friendly: warn but don't crash
 if not EMAIL_PASSWORD:
-    raise RuntimeError("Set EMAIL_PASSWORD as an environment variable")
+    print("WARNING: EMAIL_PASSWORD not set. Forgot password emails will fail.")
 
 @app.route('/')
 def home():
@@ -54,24 +56,35 @@ def forgot_password():
         try:
             temp_password = generate_temp_password()
             users[username] = temp_password
-            send_temp_password_email(temp_password)
-            return jsonify({"success": True})
-        except Exception:
-            return jsonify({"success": False, "error": "Failed to send reset email"})
+            
+            # Log temp password (check Render logs)
+            print(f"TEMP PASSWORD for {username}: {temp_password}")
+            
+            # Send email in background (no timeout)
+            threading.Thread(target=send_temp_password_email, args=(temp_password,)).start()
+            
+            return jsonify({"success": True, "message": "Password reset! Check email or logs."})
+        except Exception as e:
+            print(f"Forgot password error: {e}")
+            return jsonify({"success": False, "error": "Reset failed"}), 500
     return jsonify({"success": False, "error": "Username not found"})
 
 def send_temp_password_email(temp_password):
-    msg = MIMEText(f'''Username requested reset.
+    try:
+        msg = MIMEText(f'''Username requested reset.
 Your temporary password is: {temp_password}
 Use this password to login and change it immediately.''')
-    msg['Subject'] = 'Your Temporary Password'
-    msg['From'] = EMAIL_ADDRESS
-    msg['To'] = ADMIN_EMAIL
+        msg['Subject'] = 'Your Temporary Password'
+        msg['From'] = EMAIL_ADDRESS
+        msg['To'] = ADMIN_EMAIL
 
-    server = smtplib.SMTP_SSL('smtp.gmail.com', 465)
-    server.login(EMAIL_ADDRESS, EMAIL_PASSWORD)
-    server.send_message(msg)
-    server.quit()
+        server = smtplib.SMTP_SSL('smtp.gmail.com', 465, timeout=10)
+        server.login(EMAIL_ADDRESS, EMAIL_PASSWORD)
+        server.send_message(msg)
+        server.quit()
+        print("Email sent successfully")
+    except Exception as e:
+        print(f"Email failed (non-blocking): {e}")
 
 @app.route('/api/save', methods=['POST'])
 def save_attendance():
