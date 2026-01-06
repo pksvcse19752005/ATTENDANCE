@@ -3,7 +3,7 @@ from flask_cors import CORS
 import smtplib
 from email.mime.text import MIMEText
 from io import BytesIO
-import random
+import secrets
 import string
 import pandas as pd
 from datetime import datetime, timedelta
@@ -13,21 +13,32 @@ app = Flask(__name__)
 CORS(app)
 
 users = {
-    "DEPTCSE": "pksv"
+    "DEPTCSE": "Pksvcse1975@"  # Updated with your new password
 }
 
 attendance_data = {}
 
-EMAIL_ADDRESS = os.environ.get("EMAIL_ADDRESS", "vinaypydi85@gmail.com")
-EMAIL_PASSWORD = os.environ.get("EMAIL_PASSWORD", "pxbntsohbnbojhtw")  # use env vars for security
+# Your email is fixed here
+ADMIN_EMAIL = "vinaypydi85@gmail.com"
+
+# Read the app password (or SMTP password) ONLY from environment
+EMAIL_ADDRESS = os.environ.get("EMAIL_ADDRESS", ADMIN_EMAIL)
+EMAIL_PASSWORD = os.environ.get("EMAIL_PASSWORD")
+
+if not EMAIL_PASSWORD:
+    # You must set EMAIL_PASSWORD in environment before running
+    raise RuntimeError("Set EMAIL_PASSWORD as an environment variable")
+
 
 @app.route('/')
 def home():
     return send_from_directory('static', 'frontend.html')
 
+
 @app.route('/reset-password')
 def reset_password():
     return "<h2>Password Reset Page - Feature under construction.</h2>"
+
 
 @app.route('/api/login', methods=['POST'])
 def login():
@@ -38,9 +49,11 @@ def login():
         return jsonify({"success": True})
     return jsonify({"success": False, "error": "Invalid username or password"})
 
+
 def generate_temp_password(length=8):
     chars = string.ascii_letters + string.digits + string.punctuation
-    return ''.join(random.choice(chars) for _ in range(length))
+    return ''.join(secrets.choice(chars) for _ in range(length))
+
 
 @app.route('/api/forgot_password', methods=['POST'])
 def forgot_password():
@@ -56,15 +69,24 @@ def forgot_password():
             return jsonify({"success": False, "error": "Failed to send reset email"})
     return jsonify({"success": False, "error": "Username not found"})
 
+
 def send_temp_password_email(temp_password):
-    msg = MIMEText(f'Your temporary password is: {temp_password}\nPlease use this password to login and change it immediately.')
+    msg = MIMEText(
+        f'Username requested reset.
+'
+        f'Your temporary password is: {temp_password}
+'
+        f'Use this password to login and change it immediately.'
+    )
     msg['Subject'] = 'Your Temporary Password'
     msg['From'] = EMAIL_ADDRESS
-    msg['To'] = EMAIL_ADDRESS
+    msg['To'] = ADMIN_EMAIL  # always your email
+
     server = smtplib.SMTP_SSL('smtp.gmail.com', 465)
     server.login(EMAIL_ADDRESS, EMAIL_PASSWORD)
     server.send_message(msg)
     server.quit()
+
 
 @app.route('/api/save', methods=['POST'])
 def save_attendance():
@@ -76,6 +98,7 @@ def save_attendance():
     attendance_data[date] = attendance
     return jsonify({"success": True})
 
+
 @app.route('/api/check')
 def check_attendance():
     regno = request.args.get('regno')
@@ -84,6 +107,7 @@ def check_attendance():
         return jsonify({"status": "Absent"})
     status = attendance_data.get(date, {}).get(regno, {}).get('status', "Absent")
     return jsonify({"status": status})
+
 
 @app.route('/api/student_login', methods=['POST'])
 def student_login():
@@ -97,6 +121,7 @@ def student_login():
             return jsonify({"success": True})
     return jsonify({"success": False, "error": "Invalid registration number"})
 
+
 @app.route('/api/student/check_attendance')
 def student_check_attendance():
     regno = request.args.get('regno')
@@ -105,6 +130,7 @@ def student_check_attendance():
         return jsonify({"status": "Absent"})
     status = attendance_data.get(date, {}).get(regno, {}).get('status', "Absent")
     return jsonify({"status": status})
+
 
 @app.route('/api/export_absentees/')
 def export_absentees():
@@ -134,6 +160,7 @@ def export_absentees():
         as_attachment=True,
         download_name=filename
     )
+
 
 @app.route('/api/export_weekly_report/')
 def export_weekly_report():
@@ -177,6 +204,7 @@ def export_weekly_report():
         as_attachment=True,
         download_name=filename
     )
+
 
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 5000))
