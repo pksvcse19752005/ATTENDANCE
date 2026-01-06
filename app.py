@@ -30,7 +30,7 @@ ADMIN_EMAIL = "vinaypydi85@gmail.com"
 # EMAIL_ADDRESS = your Gmail
 # EMAIL_PASSWORD = 16-char app password you just created
 EMAIL_ADDRESS = os.environ.get("vinaypydi85@gmail.com", ADMIN_EMAIL)
-EMAIL_PASSWORD = os.environ.get("dka sred iixg mexc")
+EMAIL_PASSWORD = os.environ.get("xdkasrediixgmexc")
 
 if not EMAIL_PASSWORD:
     print("WARNING: EMAIL_PASSWORD not set. Forgot password emails will fail.")
