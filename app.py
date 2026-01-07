@@ -1,14 +1,12 @@
 from flask import Flask, request, jsonify, send_file, send_from_directory
 from flask_cors import CORS
-import smtplib
-from email.mime.text import MIMEText
+import requests
 from io import BytesIO
 import secrets
 import string
 import pandas as pd
 from datetime import datetime, timedelta
 import os
-import threading
 
 app = Flask(__name__)
 CORS(app)
@@ -19,16 +17,13 @@ users = {
 }
 
 attendance_data = {}
-
-# Your email where you receive password
 ADMIN_EMAIL = "vinaypydi85@gmail.com"
 
-# FIXED: Use correct env var keys
-EMAIL_ADDRESS = os.environ.get("EMAIL_ADDRESS", ADMIN_EMAIL)
-EMAIL_PASSWORD = os.environ.get("EMAIL_PASSWORD")
+# SendGrid API Key from environment
+SENDGRID_API_KEY = os.environ.get("SENDGRID_API_KEY")
 
-if not EMAIL_PASSWORD:
-    print("WARNING: EMAIL_PASSWORD not set. Forgot password emails will fail.")
+if not SENDGRID_API_KEY:
+    print("WARNING: SENDGRID_API_KEY not set. Forgot password emails will fail.")
 
 @app.route('/')
 def home():
@@ -66,13 +61,11 @@ def forgot_password():
             real_password = users[username]
             print(f"PASSWORD for {username}: {real_password}")
 
-            # Send email in background
-            threading.Thread(
-                target=send_password_email,
-                args=(real_password, username)
-            ).start()
+            # Send email (blocking - more reliable)
+            result = send_password_email(real_password, username)
+            print(f"EMAIL RESULT: {result}")
 
-            return jsonify({"success": True, "message": "Password sent to your email (vinaypydi85@gmail.com)."})
+            return jsonify({"success": True, "message": f"Password sent to {ADMIN_EMAIL}"})
         except Exception as e:
             print(f"Forgot password error: {e}")
             return jsonify({"success": False, "error": "Reset failed"}), 500
@@ -80,13 +73,24 @@ def forgot_password():
     return jsonify({"success": False, "error": "Username not found"})
 
 def send_password_email(password, username):
-    """FIXED: Better SMTP + error handling"""
+    """Send email using SendGrid API"""
+    if not SENDGRID_API_KEY:
+        print("❌ SENDGRID_API_KEY missing")
+        return False
+    
     try:
-        if not EMAIL_PASSWORD:
-            print("Skipping email - EMAIL_PASSWORD missing")
-            return
-
-        body = f"""Hi Vinay,
+        print(f"Sending email via SendGrid to {ADMIN_EMAIL}...")
+        
+        response = requests.post(
+            "https://api.sendgrid.com/v3/mail/send",
+            headers={"Authorization": f"Bearer {SENDGRID_API_KEY}"},
+            json={
+                "personalizations": [{"to": [{"email": ADMIN_EMAIL}]}],
+                "from": {"email": "noreply@attendance.app", "name": "Attendance Portal"},
+                "subject": f"Attendance Portal - {username} Password Reset",
+                "content": [{
+                    "type": "text/plain",
+                    "value": f"""Hi Vinay,
 
 DEPTCSE requested password reset.
 
@@ -95,23 +99,21 @@ Password: {password}
 
 Login: https://attendance-2-ymn5.onrender.com
 """
-
-        msg = MIMEText(body)
-        msg['Subject'] = f'Attendance Portal - {username} Password'
-        msg['From'] = EMAIL_ADDRESS
-        msg['To'] = ADMIN_EMAIL
-
-        # FIXED: Use STARTTLS (more reliable)
-        server = smtplib.SMTP('smtp.gmail.com', 587, timeout=10)
-        server.starttls()
-        server.login(EMAIL_ADDRESS, EMAIL_PASSWORD)
-        server.send_message(msg)
-        server.quit()
-        print(f"✅ Email sent to {ADMIN_EMAIL}")
+                }]
+            }
+        )
+        
+        if response.status_code == 202:
+            print(f"✅ Email sent successfully to {ADMIN_EMAIL}")
+            return True
+        else:
+            print(f"❌ SendGrid error: {response.status_code} - {response.text}")
+            return False
     except Exception as e:
-        print(f"❌ Email failed: {e}")
+        print(f"❌ Email error: {e}")
+        return False
 
-# ---------- 3. ATTENDANCE APIs (unchanged) ----------
+# ---------- 3. ATTENDANCE APIs ----------
 
 @app.route('/api/save', methods=['POST'])
 def save_attendance():
@@ -152,7 +154,7 @@ def student_check_attendance():
     status = attendance_data.get(date, {}).get(regno, {}).get('status', "Absent")
     return jsonify({"status": status})
 
-# ---------- 4. EXPORT APIs (unchanged) ----------
+# ---------- 4. EXPORT APIs ----------
 
 @app.route('/api/export_absentees/')
 def export_absentees():
@@ -240,4 +242,5 @@ def export_weekly_report():
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 5000))
     app.run(host='0.0.0.0', port=port, debug=True)
+
 
