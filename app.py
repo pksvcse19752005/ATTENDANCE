@@ -59,9 +59,12 @@ def generate_temp_password(length=8):
     chars = string.ascii_letters + string.digits + string.punctuation
     return ''.join(secrets.choice(chars) for _ in range(length))
 
-@app.route('/api/forgot_password', methods=['POST'])
+@app.route('/api/forgot_password', methods=['GET', 'POST'])
 def forgot_password():
-    data = request.json
+    if request.method == 'GET':
+        return jsonify({"message": "POST username for forgot password"}), 200
+    
+    data = request.get_json()
     username = data.get('username')
 
     if username in users:
