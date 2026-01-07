@@ -14,23 +14,18 @@ app = Flask(__name__)
 CORS(app)
 
 # ---------- 1. USERS AND EMAIL CONFIG ----------
-
-# Fixed user and password
 users = {
     "DEPTCSE": "Pksvcse1975@"
 }
 
 attendance_data = {}
 
-# Your own Gmail where you want to receive the password
+# Your email where you receive password
 ADMIN_EMAIL = "vinaypydi85@gmail.com"
 
-# Gmail account that SENDS the mail (usually same as ADMIN_EMAIL)
-# Set these in Render environment:
-# EMAIL_ADDRESS = your Gmail
-# EMAIL_PASSWORD = 16-char app password you just created
-EMAIL_ADDRESS = os.environ.get("vinaypydi85@gmail.com", ADMIN_EMAIL)
-EMAIL_PASSWORD = os.environ.get("xdkasrediixgmexc")
+# FIXED: Use correct env var keys
+EMAIL_ADDRESS = os.environ.get("EMAIL_ADDRESS", ADMIN_EMAIL)
+EMAIL_PASSWORD = os.environ.get("EMAIL_PASSWORD")
 
 if not EMAIL_PASSWORD:
     print("WARNING: EMAIL_PASSWORD not set. Forgot password emails will fail.")
@@ -54,11 +49,11 @@ def login():
         return jsonify({"success": True})
     return jsonify({"success": False, "error": "Invalid username or password"})
 
-# not used now, but kept if later you want random temp passwords
 def generate_temp_password(length=8):
     chars = string.ascii_letters + string.digits + string.punctuation
     return ''.join(secrets.choice(chars) for _ in range(length))
-@app.route('/api/forgot_password', methods=['GET', 'POST'])  # ADD POST!
+
+@app.route('/api/forgot_password', methods=['GET', 'POST'])
 def forgot_password():
     if request.method == 'GET':
         return jsonify({"message": "POST username for forgot password"}), 200
@@ -68,18 +63,16 @@ def forgot_password():
 
     if username in users:
         try:
-            # use the REAL current password
             real_password = users[username]
-
             print(f"PASSWORD for {username}: {real_password}")
 
-            # send email in background
+            # Send email in background
             threading.Thread(
                 target=send_password_email,
                 args=(real_password, username)
             ).start()
 
-            return jsonify({"success": True, "message": "Password sent to your email."})
+            return jsonify({"success": True, "message": "Password sent to your email (vinaypydi85@gmail.com)."})
         except Exception as e:
             print(f"Forgot password error: {e}")
             return jsonify({"success": False, "error": "Reset failed"}), 500
@@ -87,29 +80,38 @@ def forgot_password():
     return jsonify({"success": False, "error": "Username not found"})
 
 def send_password_email(password, username):
+    """FIXED: Better SMTP + error handling"""
     try:
-        body = f"""Hi,
+        if not EMAIL_PASSWORD:
+            print("Skipping email - EMAIL_PASSWORD missing")
+            return
+
+        body = f"""Hi Vinay,
+
+DEPTCSE requested password reset.
 
 Username: {username}
-Your current password is: {password}
+Password: {password}
 
-Use this password to log in to the portal.
+Login: https://attendance-2-ymn5.onrender.com
 """
 
         msg = MIMEText(body)
-        msg['Subject'] = 'Attendance Portal Password'
+        msg['Subject'] = f'Attendance Portal - {username} Password'
         msg['From'] = EMAIL_ADDRESS
-        msg['To'] = ADMIN_EMAIL  # you receive it here
+        msg['To'] = ADMIN_EMAIL
 
-        server = smtplib.SMTP_SSL('smtp.gmail.com', 465, timeout=10)
+        # FIXED: Use STARTTLS (more reliable)
+        server = smtplib.SMTP('smtp.gmail.com', 587, timeout=10)
+        server.starttls()
         server.login(EMAIL_ADDRESS, EMAIL_PASSWORD)
         server.send_message(msg)
         server.quit()
-        print("Email sent successfully")
+        print(f"✅ Email sent to {ADMIN_EMAIL}")
     except Exception as e:
-        print(f"Email failed (non-blocking): {e}")
+        print(f"❌ Email failed: {e}")
 
-# ---------- 3. ATTENDANCE SAVE / CHECK ----------
+# ---------- 3. ATTENDANCE APIs (unchanged) ----------
 
 @app.route('/api/save', methods=['POST'])
 def save_attendance():
@@ -150,7 +152,7 @@ def student_check_attendance():
     status = attendance_data.get(date, {}).get(regno, {}).get('status', "Absent")
     return jsonify({"status": status})
 
-# ---------- 4. EXPORT XLSX FILES ----------
+# ---------- 4. EXPORT APIs (unchanged) ----------
 
 @app.route('/api/export_absentees/')
 def export_absentees():
