@@ -7,6 +7,7 @@ import string
 import pandas as pd
 from datetime import datetime, timedelta
 import os
+import json
 
 app = Flask(__name__)
 CORS(app)
@@ -33,15 +34,43 @@ def home():
 def reset_password():
     return "<h2>Password Reset Page - Feature under construction.</h2>"
 
-# ---------- 2. LOGIN & FORGOT PASSWORD ----------
+# ========== GITHUB WEBHOOK ROUTE ==========
+@app.route('/github-webhook/', methods=['POST'])
+def github_webhook():
+    try:
+        data = request.get_json()
+        if not data:
+            print("❌ No JSON data received")
+            return 'Bad Request', 400
+        
+        branch = data.get('ref', 'unknown')
+        commit_msg = data.get('head_commit', {}).get('message', 'no message')
+        repo_name = data.get('repository', {}).get('name', 'unknown')
+        
+        print("🚀 GITHUB WEBHOOK RECEIVED!")
+        print(f"📁 Repository: {repo_name}")
+        print(f"🌿 Branch: {branch}")
+        print(f"💬 Commit: {commit_msg}")
+        print(f"🔗 URL: https://prescriptive-melodee-irremissibly.ngrok-free.dev")
+        
+        # Auto-restart logic or deployment commands here
+        print("✅ Webhook processed successfully!")
+        return 'OK', 200
+        
+    except Exception as e:
+        print(f"❌ Webhook error: {str(e)}")
+        return 'Internal Server Error', 500
 
+# ---------- 2. LOGIN & FORGOT PASSWORD ----------
 @app.route('/api/login', methods=['POST'])
 def login():
     data = request.json
     username = data.get('username')
     password = data.get('password')
     if username in users and users[username] == password:
+        print(f"✅ Login success: {username}")
         return jsonify({"success": True})
+    print(f"❌ Login failed: {username}")
     return jsonify({"success": False, "error": "Invalid username or password"})
 
 def generate_temp_password(length=8):
@@ -61,7 +90,6 @@ def forgot_password():
             real_password = users[username]
             print(f"PASSWORD for {username}: {real_password}")
 
-            # Send email (blocking - more reliable)
             result = send_password_email(real_password, username)
             print(f"EMAIL RESULT: {result}")
 
@@ -114,7 +142,6 @@ Login: https://attendance-2-ymn5.onrender.com
         return False
 
 # ---------- 3. ATTENDANCE APIs ----------
-
 @app.route('/api/save', methods=['POST'])
 def save_attendance():
     data = request.json
@@ -123,6 +150,7 @@ def save_attendance():
     if not date or not attendance:
         return jsonify({"success": False, "error": "Date or attendance missing"})
     attendance_data[date] = attendance
+    print(f"💾 Saved attendance for {date}")
     return jsonify({"success": True})
 
 @app.route('/api/check')
@@ -155,7 +183,6 @@ def student_check_attendance():
     return jsonify({"status": status})
 
 # ---------- 4. EXPORT APIs ----------
-
 @app.route('/api/export_absentees/')
 def export_absentees():
     date = request.args.get('date')
@@ -241,6 +268,8 @@ def export_weekly_report():
 
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 5000))
+    print("🚀 Flask Attendance App + GitHub Webhook running on port", port)
+    print("📡 Webhook endpoint: /github-webhook/")
     app.run(host='0.0.0.0', port=port, debug=True)
 
 
